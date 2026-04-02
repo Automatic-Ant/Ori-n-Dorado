@@ -32,6 +32,9 @@ const Stock = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [onlyLowStock, setOnlyLowStock] = useState(false);
+  const [filterMarca, setFilterMarca] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStock, setFilterStock] = useState('todos');
   
   const [globalBaseCode, setGlobalBaseCode] = useState(() => {
     return localStorage.getItem('orion_global_base_code') || '';
@@ -65,6 +68,11 @@ const Stock = () => {
     marca: ''
   });
 
+  const marcaOptions = useMemo(() => {
+    const marcas = [...new Set(products.map(p => p.marca).filter(Boolean))].sort();
+    return marcas;
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const pName = p.name ? p.name.toString().toLowerCase() : '';
@@ -73,17 +81,25 @@ const Stock = () => {
       const pMarca = p.marca ? p.marca.toString().toLowerCase() : '';
 
       const term = searchTerm.toLowerCase();
-      const matchesSearch = pName.includes(term) || pCode.includes(term) || cat.includes(term) || pMarca.includes(term);
-      
+      const matchesSearch = !term || pName.includes(term) || pCode.includes(term) || cat.includes(term) || pMarca.includes(term);
+
+      const matchesMarca = !filterMarca || (p.marca || '').toLowerCase() === filterMarca.toLowerCase();
+      const matchesCategory = !filterCategory || p.category === filterCategory;
+
       const stockVal = Number(p.stock) || 0;
       const minStockVal = Number(p.minStock) || 0;
-      const isLowStockStatus = stockVal <= minStockVal;
-      
-      const matchesFilter = !onlyLowStock || isLowStockStatus;
-      
-      return matchesSearch && matchesFilter;
+      const matchesStockFilter =
+        filterStock === 'todos' ? true :
+        filterStock === 'ok'    ? stockVal > minStockVal :
+        filterStock === 'bajo'  ? (stockVal <= minStockVal && stockVal > 0) :
+        filterStock === 'sin'   ? stockVal === 0 : true;
+
+      // keep legacy onlyLowStock for sidebar redirect compatibility
+      const matchesLowStock = !onlyLowStock || stockVal <= minStockVal;
+
+      return matchesSearch && matchesMarca && matchesCategory && matchesStockFilter && matchesLowStock;
     });
-  }, [products, searchTerm, onlyLowStock]);
+  }, [products, searchTerm, onlyLowStock, filterMarca, filterCategory, filterStock]);
 
   const handleOpenModal = (product = null) => {
     if (product) {
@@ -175,32 +191,70 @@ const Stock = () => {
       <div className="stock-controls">
         <div className="search-bar card glass">
           <Search size={20} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, código, categoría o marca..." 
+          <input
+            type="text"
+            placeholder="Buscar por nombre, código, categoría o marca..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && (
+            <button className="clear-btn" onClick={() => setSearchTerm('')} type="button">
+              <X size={16} />
+            </button>
+          )}
         </div>
-        
-        <button 
-          className={`filter-btn card glass ${onlyLowStock ? 'active' : ''}`}
-          onClick={() => setOnlyLowStock(!onlyLowStock)}
-          type="button"
-        >
-          <AlertCircle size={18} />
-          <span>Bajo Stock</span>
-        </button>
 
-        <div className="filters card glass" style={{ padding: '0 1rem' }}>
-          <span className="filter-label">Cód. Base Global:</span>
-          <input 
-            type="number" 
-            placeholder="Ej: 1300"
-            value={globalBaseCode}
-            onChange={(e) => setGlobalBaseCode(e.target.value)}
-            className="global-base-input"
-          />
+        <div className="filters-row">
+          <div className="filter-select-wrap card glass">
+            <Filter size={15} className="filter-icon" />
+            <select value={filterMarca} onChange={(e) => setFilterMarca(e.target.value)}>
+              <option value="">Todas las marcas</option>
+              {marcaOptions.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+
+          <div className="filter-select-wrap card glass">
+            <Filter size={15} className="filter-icon" />
+            <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <option value="">Todas las categorías</option>
+              <option value="Cables">Cables</option>
+              <option value="Iluminación">Iluminación</option>
+              <option value="Protecciones">Protecciones</option>
+              <option value="Cajas">Cajas</option>
+              <option value="Otros">Otros</option>
+            </select>
+          </div>
+
+          <div className="filter-select-wrap card glass">
+            <AlertCircle size={15} className="filter-icon" />
+            <select value={filterStock} onChange={(e) => { setFilterStock(e.target.value); setOnlyLowStock(false); }}>
+              <option value="todos">Todo el stock</option>
+              <option value="ok">Stock OK</option>
+              <option value="bajo">Stock bajo</option>
+              <option value="sin">Sin stock</option>
+            </select>
+          </div>
+
+          <div className="filters card glass" style={{ padding: '0 1rem' }}>
+            <span className="filter-label">Cód. Base Global:</span>
+            <input
+              type="number"
+              placeholder="Ej: 1300"
+              value={globalBaseCode}
+              onChange={(e) => setGlobalBaseCode(e.target.value)}
+              className="global-base-input"
+            />
+          </div>
+
+          {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock) && (
+            <button
+              className="clear-filters-btn card glass"
+              onClick={() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); }}
+              type="button"
+            >
+              <X size={15} /> Limpiar filtros
+            </button>
+          )}
         </div>
       </div>
 
@@ -398,11 +452,11 @@ const Stock = () => {
 
         .stock-controls {
           display: flex;
-          gap: 1rem;
+          flex-direction: column;
+          gap: 0.75rem;
         }
 
         .search-bar {
-          flex: 1;
           display: flex;
           align-items: center;
           gap: 1rem;
@@ -419,33 +473,82 @@ const Stock = () => {
           outline: none;
         }
 
-        .filter-btn {
+        .clear-btn {
+          background: transparent;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
           display: flex;
           align-items: center;
+          padding: 2px;
+          transition: color 0.2s;
+        }
+
+        .clear-btn:hover { color: white; }
+
+        .filters-row {
+          display: flex;
           gap: 0.75rem;
-          padding: 0 1.5rem;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .filter-select-wrap {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0 1rem;
+          height: 42px;
+          border-radius: 10px;
+        }
+
+        .filter-icon {
+          color: var(--primary-gold);
+          flex-shrink: 0;
+        }
+
+        .filter-select-wrap select {
           background: transparent;
-          border: 1px solid var(--border-color);
-          color: var(--text-secondary);
+          border: none;
+          color: white;
+          font-size: 0.9rem;
+          outline: none;
+          cursor: pointer;
+          min-width: 140px;
+        }
+
+        .filter-select-wrap select option {
+          background: #1a1a1a;
+          color: white;
+        }
+
+        .clear-filters-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0 1rem;
+          height: 42px;
+          border-radius: 10px;
+          background: transparent;
+          border: 1px solid rgba(231, 76, 60, 0.4);
+          color: #e74c3c;
+          font-size: 0.85rem;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
         }
 
-        .filter-btn.active {
+        .clear-filters-btn:hover {
           background: rgba(231, 76, 60, 0.1);
-          border-color: var(--error);
-          color: var(--error);
-        }
-
-        .filter-btn:hover:not(.active) {
-          background: rgba(255, 255, 255, 0.05);
         }
 
         .filters {
           display: flex;
           align-items: center;
           gap: 1rem;
-          padding: 0 1.5rem;
+          padding: 0 1rem;
+          height: 42px;
+          border-radius: 10px;
         }
 
         .global-base-input {
