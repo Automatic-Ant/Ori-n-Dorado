@@ -29,14 +29,19 @@ export async function generateQuotePDF({ cart, total, discount, discountPct, fin
 
   // ── Header text ───────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setTextColor(...gold);
-  doc.text('ORIÓN DORADO MATERIALES ELÉCTRICOS', 40, 20);
+  doc.text('ORIÓN DORADO', 40, 20);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...grey);
-  doc.text('Av. Riavitz 184, Plottier  |  Tel: 299-4769198', 40, 27);
+  doc.text('Materiales eléctricos e iluminación', 40, 27);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...dark);
+  doc.text('Av. Riavitz 184, Plottier  |  Tel: 299-4769198', 40, 33);
 
   // ── Title ─────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
@@ -61,7 +66,7 @@ export async function generateQuotePDF({ cart, total, discount, discountPct, fin
   // ── Divider ───────────────────────────────────────────────────
   doc.setDrawColor(...gold);
   doc.setLineWidth(0.5);
-  doc.line(14, 38, 196, 38);
+  doc.line(14, 40, 196, 40);
 
   // ── Items table ───────────────────────────────────────────────
   const tableBody = cart.map((item) => [
@@ -88,7 +93,7 @@ export async function generateQuotePDF({ cart, total, discount, discountPct, fin
   ]);
 
   autoTable(doc, {
-    startY: 44,
+    startY: 46,
     head: [['Producto', 'Cant.', 'Precio unit.', 'Subtotal']],
     body: tableBody,
     foot: tableFoot,
