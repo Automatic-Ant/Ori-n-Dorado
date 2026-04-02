@@ -64,7 +64,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
   };
 
   const handleImport = async () => {
-    if (!mapping.code || mapping.code === '' || !mapping.name || mapping.name === '') return;
+    if (mapping.code === undefined || mapping.name === undefined) return;
 
     setImporting(true);
     const products = rows.map(row => {
