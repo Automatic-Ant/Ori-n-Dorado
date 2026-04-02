@@ -4,7 +4,7 @@ import {
   ShoppingCart,
   Package,
   Users,
-  Receipt,
+
   AlertTriangle,
   CheckCircle,
   RotateCcw
@@ -32,7 +32,7 @@ const Sidebar = () => {
     { icon: <ShoppingCart size={20} />, label: 'Ventas', path: '/ventas' },
     { icon: <RotateCcw size={20} />, label: 'Devoluciones', path: '/devoluciones' },
     { icon: <Package size={20} />, label: 'Stock', path: '/stock' },
-    { icon: <Receipt size={20} />, label: 'Presupuestos', path: '/presupuestos' },
+
     { icon: <Users size={20} />, label: 'Clientes y Créditos', path: '/clientes' },
   ];
 

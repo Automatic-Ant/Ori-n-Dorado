@@ -15,7 +15,8 @@ import {
   ShoppingCart,
   AlertTriangle,
   Wallet2,
-  GitBranch
+  GitBranch,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProductStore } from '../../store/productStore';
@@ -252,6 +253,32 @@ const Sales = () => {
       setIsSuccess(false);
       clearCart();
     }, 3000);
+  };
+
+  const handleQuote = () => {
+    if (cart.length === 0) return;
+
+    const lines = cart.map(
+      (item) => `${item.name} x${item.quantity}  ${formatCurrency(item.price * item.quantity)}`
+    );
+
+    if (discount > 0) {
+      lines.push('');
+      lines.push(`Subtotal: ${formatCurrency(total)}`);
+      lines.push(`Descuento efectivo (${discountPct}%): -${formatCurrency(discount)}`);
+    }
+
+    lines.push('');
+    lines.push(`TOTAL: ${formatCurrency(finalTotal)}`);
+
+    const text = lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `presupuesto_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -511,13 +538,23 @@ const Sales = () => {
             </div>
           </div>
 
-          <button
-            className="btn-primary checkout-btn"
-            disabled={cart.length === 0}
-            onClick={handleCheckout}
-          >
-            Confirmar Venta
-          </button>
+          <div className="checkout-actions">
+            <button
+              className="btn-secondary quote-btn"
+              disabled={cart.length === 0}
+              onClick={handleQuote}
+            >
+              <FileText size={18} />
+              Presupuesto
+            </button>
+            <button
+              className="btn-primary checkout-btn"
+              disabled={cart.length === 0}
+              onClick={handleCheckout}
+            >
+              Confirmar Venta
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1125,8 +1162,25 @@ const Sales = () => {
           font-weight: 800;
         }
 
+        .checkout-actions {
+          display: flex;
+          gap: 0.75rem;
+        }
+
+        .quote-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          height: 55px;
+          padding: 0 1.25rem;
+          font-size: 0.95rem;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
         .checkout-btn {
-          width: 100%;
+          flex: 1;
           height: 55px;
           font-size: 1.1rem;
         }
