@@ -7,7 +7,9 @@ import {
   AlertTriangle,
   Eye,
   Banknote,
-  CreditCard
+  CreditCard,
+  PlusCircle,
+  MinusCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -90,6 +92,49 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {todayCaja.length > 0 && (
+        <div className="caja-section card glass">
+          <div className="section-header">
+            <div className="title-with-icon">
+              <Banknote className="text-gold" size={22} />
+              <h3>Movimientos de Caja — Hoy</h3>
+            </div>
+          </div>
+          <table className="caja-table">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>Usuario</th>
+                <th>Hora</th>
+                <th className="text-right">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {todayCaja.map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    <span className={`caja-type-badge ${m.type}`}>
+                      {m.type === 'ingreso'
+                        ? <><PlusCircle size={13} /> Ingreso</>
+                        : <><MinusCircle size={13} /> Egreso</>}
+                    </span>
+                  </td>
+                  <td className="caja-desc">{m.description || '—'}</td>
+                  <td className="caja-seller">{m.sellerName || '—'}</td>
+                  <td>
+                    <div className="sale-time"><Clock size={13} />{m.time}</div>
+                  </td>
+                  <td className={`text-right caja-amount ${m.type}`}>
+                    {m.type === 'ingreso' ? '+' : '−'} {formatCurrency(m.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="dashboard-grid single-column">
         <div className="recent-sales card glass full-width">
@@ -367,6 +412,80 @@ const Dashboard = () => {
         .digital-card .daily-card-amount {
           color: #3498db;
         }
+
+        .caja-section {
+          padding: 1.5rem 2rem;
+        }
+
+        .caja-table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0 8px;
+        }
+
+        .caja-table th {
+          text-align: left;
+          padding: 0.5rem 1rem;
+          color: var(--text-secondary);
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+
+        .caja-table td {
+          padding: 0.85rem 1rem;
+          background: rgba(255,255,255,0.03);
+          border-top: 1px solid rgba(255,255,255,0.04);
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .caja-table td:first-child {
+          border-left: 1px solid rgba(255,255,255,0.04);
+          border-radius: 10px 0 0 10px;
+        }
+
+        .caja-table td:last-child {
+          border-right: 1px solid rgba(255,255,255,0.04);
+          border-radius: 0 10px 10px 0;
+        }
+
+        .caja-type-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 3px 10px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 700;
+        }
+
+        .caja-type-badge.ingreso {
+          background: rgba(46, 204, 113, 0.1);
+          color: #2ecc71;
+        }
+
+        .caja-type-badge.egreso {
+          background: rgba(231, 76, 60, 0.1);
+          color: #e74c3c;
+        }
+
+        .caja-desc {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+
+        .caja-seller {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .caja-amount {
+          font-weight: 800;
+          font-size: 1rem;
+        }
+
+        .caja-amount.ingreso { color: #2ecc71; }
+        .caja-amount.egreso  { color: #e74c3c; }
 
         .dashboard-grid.single-column {
           display: flex;
