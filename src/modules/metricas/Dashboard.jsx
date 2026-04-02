@@ -1,11 +1,13 @@
-import { 
+import {
   ShoppingBag,
   Clock,
   XCircle,
   RefreshCcw,
   Plus,
   AlertTriangle,
-  Eye
+  Eye,
+  Banknote,
+  CreditCard
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -44,8 +46,44 @@ const Dashboard = () => {
     }
   };
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const todayCompletedSales = sales.filter(
+    (s) => s.status !== 'cancelado' && s.date && s.date.startsWith(todayStr)
+  );
+
+  const totalEfectivo = todayCompletedSales
+    .filter((s) => s.paymentMethod && s.paymentMethod.includes('efectivo'))
+    .reduce((sum, s) => sum + (s.total || 0), 0);
+
+  const totalDigital = todayCompletedSales
+    .filter((s) => !s.paymentMethod || !s.paymentMethod.includes('efectivo'))
+    .reduce((sum, s) => sum + (s.total || 0), 0);
+
   return (
     <div className="dashboard">
+      <div className="daily-totals-row">
+        <div className="daily-card card glass efectivo-card">
+          <div className="daily-card-icon">
+            <Banknote size={28} />
+          </div>
+          <div className="daily-card-info">
+            <span className="daily-card-label">Efectivo — Hoy</span>
+            <span className="daily-card-amount">{formatCurrency(totalEfectivo)}</span>
+          </div>
+        </div>
+
+        <div className="daily-card card glass digital-card">
+          <div className="daily-card-icon">
+            <CreditCard size={28} />
+          </div>
+          <div className="daily-card-info">
+            <span className="daily-card-label">QR / Débito / Tarjeta / Transf. — Hoy</span>
+            <span className="daily-card-amount">{formatCurrency(totalDigital)}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="dashboard-grid single-column">
         <div className="recent-sales card glass full-width">
           <div className="section-header">
@@ -258,6 +296,69 @@ const Dashboard = () => {
       <style jsx>{`
         .dashboard {
           padding-bottom: 2rem;
+        }
+
+        .daily-totals-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .daily-card {
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          padding: 1.5rem 2rem;
+          border-radius: 16px;
+        }
+
+        .daily-card-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 56px;
+          height: 56px;
+          border-radius: 14px;
+          flex-shrink: 0;
+        }
+
+        .efectivo-card .daily-card-icon {
+          background: rgba(46, 204, 113, 0.12);
+          color: #2ecc71;
+        }
+
+        .digital-card .daily-card-icon {
+          background: rgba(52, 152, 219, 0.12);
+          color: #3498db;
+        }
+
+        .daily-card-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .daily-card-label {
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: var(--text-secondary);
+        }
+
+        .daily-card-amount {
+          font-size: 1.8rem;
+          font-weight: 900;
+          line-height: 1;
+        }
+
+        .efectivo-card .daily-card-amount {
+          color: #2ecc71;
+        }
+
+        .digital-card .daily-card-amount {
+          color: #3498db;
         }
 
         .dashboard-grid.single-column {
@@ -656,6 +757,9 @@ const Dashboard = () => {
         }
 
         @media (max-width: 768px) {
+          .daily-totals-row {
+            grid-template-columns: 1fr;
+          }
           .sales-table {
             min-width: 700px;
           }
