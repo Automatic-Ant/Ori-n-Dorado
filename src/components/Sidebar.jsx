@@ -30,9 +30,8 @@ const Sidebar = () => {
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/' },
     { icon: <ShoppingCart size={20} />, label: 'Ventas', path: '/ventas' },
-    { icon: <RotateCcw size={20} />, label: 'Devoluciones', path: '/devoluciones' },
     { icon: <Package size={20} />, label: 'Stock', path: '/stock' },
-
+    { icon: <RotateCcw size={20} />, label: 'Devoluciones', path: '/devoluciones' },
     { icon: <Users size={20} />, label: 'Clientes y Créditos', path: '/clientes' },
     { icon: <Wallet size={20} />, label: 'Agregar/Sacar dinero', path: '/caja' },
   ];
