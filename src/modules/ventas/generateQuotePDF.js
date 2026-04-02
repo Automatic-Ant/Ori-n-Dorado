@@ -29,14 +29,14 @@ export async function generateQuotePDF({ cart, total, discount, discountPct, fin
 
   // ── Header text ───────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(18);
   doc.setTextColor(...gold);
-  doc.text('ORIÓN DORADO', 40, 22);
+  doc.text('ORIÓN DORADO MATERIALES ELÉCTRICOS', 40, 20);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...grey);
-  doc.text('CASA DE ELECTRICIDAD', 40, 28);
+  doc.text('Av. Riavitz 184, Plottier  |  Tel: 299-4769198', 40, 27);
 
   // ── Title ─────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
