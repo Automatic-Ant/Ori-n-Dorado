@@ -1,20 +1,33 @@
 import { create } from 'zustand';
 import { getCurrentISO } from '../utils/dateHelpers';
+import { supabaseService } from '../services/supabaseService';
 
 const STORAGE_KEY = 'orion_caja_movements';
 
 export const useCajaStore = create((set, get) => ({
   movements: [],
 
-  initCaja: () => {
+  initCaja: async () => {
+    // Load from localStorage first for instant UI
     const local = localStorage.getItem(STORAGE_KEY);
     if (local) set({ movements: JSON.parse(local) });
+
+    // Then sync from Supabase
+    try {
+      const live = await supabaseService.getAllCajaMovements();
+      if (live) {
+        set({ movements: live });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(live));
+      }
+    } catch (e) {
+      console.error('Error loading caja movements from Supabase:', e);
+    }
   },
 
-  addMovement: ({ type, amount, description, sellerName }) => {
+  addMovement: async ({ type, amount, description, sellerName }) => {
     const movement = {
-      id: Date.now().toString(),
-      type,           // 'ingreso' | 'egreso'
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type,
       amount: Number(amount),
       description: description || '',
       date: getCurrentISO(),
@@ -22,18 +35,34 @@ export const useCajaStore = create((set, get) => ({
       sellerName: sellerName || '',
     };
 
+    // Optimistic local update
     set((state) => {
       const updated = [movement, ...state.movements];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       return { movements: updated };
     });
+
+    // Sync to Supabase
+    try {
+      await supabaseService.addCajaMovement(movement);
+    } catch (e) {
+      console.error('Error syncing caja movement to Supabase:', e);
+    }
   },
 
-  removeMovement: (id) => {
+  removeMovement: async (id) => {
+    // Optimistic local update
     set((state) => {
       const updated = state.movements.filter((m) => m.id !== id);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       return { movements: updated };
     });
+
+    // Sync to Supabase
+    try {
+      await supabaseService.deleteCajaMovement(id);
+    } catch (e) {
+      console.error('Error deleting caja movement from Supabase:', e);
+    }
   },
 }));

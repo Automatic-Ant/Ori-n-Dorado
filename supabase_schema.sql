@@ -67,7 +67,18 @@ CREATE TABLE IF NOT EXISTS public.credit_notes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. SET UP ROW LEVEL SECURITY (RLS)
+-- 7. CAJA MOVEMENTS TABLE
+CREATE TABLE IF NOT EXISTS public.caja_movements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type TEXT NOT NULL CHECK (type IN ('ingreso', 'egreso')),
+    amount NUMERIC NOT NULL,
+    description TEXT DEFAULT '',
+    seller_name TEXT DEFAULT '',
+    date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 8. SET UP ROW LEVEL SECURITY (RLS)
 -- Since the user requested "without login" for now, we will enable public access.
 -- Warning: In a production app with sensitive data, this should be restricted to authenticated users.
 
@@ -76,6 +87,7 @@ ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sale_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.credit_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.caja_movements ENABLE ROW LEVEL SECURITY;
 
 -- Create public access policies (Temporary, as per "without login" requirement)
 CREATE POLICY "Public Access Products" ON public.products FOR ALL USING (true) WITH CHECK (true);
@@ -83,6 +95,7 @@ CREATE POLICY "Public Access Customers" ON public.customers FOR ALL USING (true)
 CREATE POLICY "Public Access Sales" ON public.sales FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Access Sale Items" ON public.sale_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Access Credit Notes" ON public.credit_notes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public Access Caja Movements" ON public.caja_movements FOR ALL USING (true) WITH CHECK (true);
 
 -- 8. RPC: Decrement Stock Safely
 -- This function handles the atomic decrement of stock to avoid race conditions.

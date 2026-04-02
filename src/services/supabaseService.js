@@ -306,7 +306,54 @@ export const supabaseService = {
         reason: note.reason,
         date: note.date
       }]);
-    
+
     if (error) console.error('Error adding credit note to Supabase:', error);
-  }
+  },
+
+  // CAJA MOVEMENTS
+  async getAllCajaMovements() {
+    const { data, error } = await supabase
+      .from('caja_movements')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching caja movements:', error);
+      return null;
+    }
+
+    return data.map(m => ({
+      id: m.id,
+      type: m.type,
+      amount: Number(m.amount),
+      description: m.description || '',
+      sellerName: m.seller_name || '',
+      date: m.date,
+      time: new Date(m.date).toLocaleTimeString('es-AR'),
+    }));
+  },
+
+  async addCajaMovement(movement) {
+    const { error } = await supabase
+      .from('caja_movements')
+      .insert([{
+        id: movement.id,
+        type: movement.type,
+        amount: movement.amount,
+        description: movement.description || '',
+        seller_name: movement.sellerName || '',
+        date: movement.date,
+      }]);
+
+    if (error) console.error('Error adding caja movement:', error);
+  },
+
+  async deleteCajaMovement(id) {
+    const { error } = await supabase
+      .from('caja_movements')
+      .delete()
+      .eq('id', id);
+
+    if (error) console.error('Error deleting caja movement:', error);
+  },
 };
