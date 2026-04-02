@@ -1,0 +1,146 @@
+import { create } from 'zustand';
+import { supabaseService } from '../services/supabaseService';
+
+export const useCustomerStore = create((set, get) => ({
+  customers: [],
+  isLoadingCustomers: true,
+  
+  initCustomers: async () => {
+    set({ isLoadingCustomers: true });
+    try {
+      const localRaw = localStorage.getItem('orion_customers');
+      const localCustomers = localRaw ? JSON.parse(localRaw) : [];
+
+      const liveCustomers = await supabaseService.getAllCustomers();
+
+      if (liveCustomers && liveCustomers.length >= localCustomers.length) {
+        // Supabase has same or more → source of truth
+        set({ customers: liveCustomers });
+        localStorage.setItem('orion_customers', JSON.stringify(liveCustomers));
+      } else if (liveCustomers && liveCustomers.length < localCustomers.length) {
+        // Local has more → keep local and sync missing ones to Supabase
+        set({ customers: localCustomers });
+        for (const c of localCustomers) {
+          const exists = liveCustomers.find((lc) => lc.dni === c.dni);
+          if (!exists) {
+            try { await supabaseService.addCustomer(c); } catch (e) { /* ignore duplicates */ }
+          }
+        }
+        // Refetch after sync
+        const synced = await supabaseService.getAllCustomers();
+        if (synced) {
+          set({ customers: synced });
+          localStorage.setItem('orion_customers', JSON.stringify(synced));
+        }
+      } else {
+        // Supabase failed → use local cache
+        if (localCustomers.length) set({ customers: localCustomers });
+      }
+    } catch (e) {
+      console.error('Error init customers:', e);
+      const localRaw = localStorage.getItem('orion_customers');
+      if (localRaw) set({ customers: JSON.parse(localRaw) });
+    }
+    set({ isLoadingCustomers: false });
+  },
+
+  setCustomers: (items) => {
+    set({ customers: items });
+    localStorage.setItem('orion_customers', JSON.stringify(items));
+  },
+
+  addCustomer: async (customer) => {
+    // 1. Optimistic local update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticCustomer = { ...customer, id: tempId, creditBalance: 0 };
+    set((state) => {
+      const newCustomers = [...state.customers, optimisticCustomer];
+      localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
+      return { customers: newCustomers };
+    });
+
+    // 2. Sync to Supabase and replace temp with real record
+    try {
+      const saved = await supabaseService.addCustomer(customer);
+      if (saved) {
+        set((state) => {
+          const newCustomers = state.customers.map((c) =>
+            c.id === tempId
+              ? { ...saved, creditBalance: Number(saved.credit_balance || 0) }
+              : c
+          );
+          localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
+          return { customers: newCustomers };
+        });
+      }
+    } catch (e) {
+      console.error('Error adding customer to Supabase:', e);
+    }
+  },
+
+  updateCustomer: async (id, updatedCustomer) => {
+    set((state) => {
+      const newCustomers = state.customers.map(c => c.id === id ? { ...c, ...updatedCustomer } : c);
+      localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
+      return { customers: newCustomers };
+    });
+    await supabaseService.updateCustomer(id, updatedCustomer);
+  },
+
+  deleteCustomer: async (id) => {
+    const previousCustomers = get().customers;
+    
+    // 1. Optimistic Update
+    set((state) => {
+      const newCustomers = state.customers.filter(c => c.id !== id);
+      localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
+      return { customers: newCustomers };
+    });
+    
+    // 2. Sync to Supabase
+    try {
+      await supabaseService.deleteCustomer(id);
+    } catch (e) {
+      console.error('Delete Customer Error, rolling back:', e);
+      set({ customers: previousCustomers });
+      localStorage.setItem('orion_customers', JSON.stringify(previousCustomers));
+    }
+  },
+
+  deductCredit: async (customerId, amount) => {
+    const customer = get().customers.find((c) => c.id === customerId);
+    if (!customer) return;
+
+    const newBalance = Math.max(0, (customer.creditBalance || 0) - Number(amount));
+
+    set((state) => {
+      const newCustomers = state.customers.map((c) =>
+        c.id === customerId ? { ...c, creditBalance: newBalance } : c
+      );
+      localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
+      return { customers: newCustomers };
+    });
+
+    await supabaseService.updateCustomer(customer.id, { ...customer, creditBalance: newBalance });
+  },
+
+  addCredit: async (customerName, amount) => {
+    const customer = get().customers.find(c => c.name === customerName);
+    if (!customer) return;
+
+    const newBalance = (customer.creditBalance || 0) + Number(amount);
+    
+    // update locally
+    set((state) => {
+      const newCustomers = state.customers.map(c => 
+        c.id === customer.id ? { ...c, creditBalance: newBalance } : c
+      );
+      localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
+      return { customers: newCustomers };
+    });
+
+    // sync to supabase
+    await supabaseService.updateCustomer(customer.id, { ...customer, creditBalance: newBalance });
+  }
+}));
+
