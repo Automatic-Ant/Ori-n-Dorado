@@ -15,6 +15,7 @@ import { useProductStore } from '../../store/productStore';
 import { useSaleStore } from '../../store/saleStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import Modal from '../../components/Modal';
+import { useCajaStore } from '../../store/cajaStore';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -46,15 +47,21 @@ const Dashboard = () => {
     }
   };
 
+  const cajaMovements = useCajaStore((state) => state.movements);
+
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const todayCompletedSales = sales.filter(
     (s) => s.status !== 'cancelado' && s.date && s.date.startsWith(todayStr)
   );
 
+  const todayCaja = cajaMovements.filter((m) => m.date && m.date.startsWith(todayStr));
+  const cajaIngresos = todayCaja.filter((m) => m.type === 'ingreso').reduce((sum, m) => sum + m.amount, 0);
+  const cajaEgresos  = todayCaja.filter((m) => m.type === 'egreso').reduce((sum, m) => sum + m.amount, 0);
+
   const totalEfectivo = todayCompletedSales
     .filter((s) => s.paymentMethod && s.paymentMethod.includes('efectivo'))
-    .reduce((sum, s) => sum + (s.total || 0), 0);
+    .reduce((sum, s) => sum + (s.total || 0), 0) + cajaIngresos - cajaEgresos;
 
   const totalDigital = todayCompletedSales
     .filter((s) => !s.paymentMethod || !s.paymentMethod.includes('efectivo'))

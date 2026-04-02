@@ -4,7 +4,7 @@ import {
   ShoppingCart,
   Package,
   Users,
-
+  Wallet,
   AlertTriangle,
   CheckCircle,
   RotateCcw
@@ -34,6 +34,7 @@ const Sidebar = () => {
     { icon: <Package size={20} />, label: 'Stock', path: '/stock' },
 
     { icon: <Users size={20} />, label: 'Clientes y Créditos', path: '/clientes' },
+    { icon: <Wallet size={20} />, label: 'Agregar/Sacar dinero', path: '/caja' },
   ];
 
   return (

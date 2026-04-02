@@ -7,6 +7,7 @@ import Returns from './modules/ventas/Returns';
 import Stock from './modules/stock/Stock';
 import Customers from './modules/clientes/Customers';
 import Quotes from './modules/presupuestos/Quotes';
+import Caja from './modules/caja/Caja';
 import Login from './modules/auth/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useStoreInitializer } from './store/storeInitializer';
@@ -77,6 +78,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Quotes />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/caja"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Caja />
               </Layout>
             </ProtectedRoute>
           }
