@@ -10,24 +10,32 @@ export const useAuthStore = create((set) => ({
   // Initialize auth state from Supabase
   initAuth: async () => {
     set({ loading: true });
-    
-    // Check current session
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (session) {
-      // Fetch profile for role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
 
-      set({ 
-        isAuthenticated: true, 
-        user: { ...session.user, ...profile },
-        loading: false 
-      });
-    } else {
+    try {
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 12000)
+      );
+
+      const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        set({
+          isAuthenticated: true,
+          user: { ...session.user, ...profile },
+          loading: false
+        });
+      } else {
+        set({ isAuthenticated: false, user: null, loading: false });
+      }
+    } catch {
+      // Timeout or network error — treat as unauthenticated so login screen shows
       set({ isAuthenticated: false, user: null, loading: false });
     }
 
@@ -56,7 +64,7 @@ export const useAuthStore = create((set) => ({
     try {
       const loginPromise = supabase.auth.signInWithPassword({ email, password });
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 8000)
+        setTimeout(() => reject(new Error('timeout')), 20000)
       );
 
       const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
@@ -70,7 +78,7 @@ export const useAuthStore = create((set) => ({
       return true;
     } catch (err) {
       const msg = err.message === 'timeout'
-        ? 'Sin respuesta del servidor. Intentá de nuevo.'
+        ? 'El servidor está iniciando, puede tardar unos segundos. Intentá de nuevo.'
         : 'Error al iniciar sesión';
       set({ error: msg, loading: false });
       return false;
