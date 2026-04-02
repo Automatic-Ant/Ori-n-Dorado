@@ -32,10 +32,10 @@ const Login = () => {
       >
         <div className="login-header">
           <div className="logo-container">
-            <div className="logo-icon">OD</div>
+            <img src="/logo.png" alt="Orion Dorado Logo" className="login-logo-img" />
           </div>
           <h1 className="gold-gradient">Orión Dorado</h1>
-          <p>Gestión de Inventario y Ventas</p>
+          <p>Casa de Electricidad</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -154,22 +154,19 @@ const Login = () => {
         .logo-container {
           display: flex;
           justify-content: center;
-          margin-bottom: 1.5rem;
+          margin-bottom: 2rem;
         }
 
-        .logo-icon {
-          width: 60px;
-          height: 60px;
-          background: var(--primary-gold);
-          color: black;
-          border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 900;
-          font-size: 1.5rem;
-          transform: rotate(-10deg);
-          box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        .login-logo-img {
+          width: 150px;
+          height: auto;
+          filter: drop-shadow(0 10px 20px rgba(212, 175, 55, 0.4));
+          animation: logo-glow 3s infinite ease-in-out;
+        }
+
+        @keyframes logo-glow {
+          0%, 100% { filter: drop-shadow(0 10px 20px rgba(212, 175, 55, 0.4)); }
+          50% { filter: drop-shadow(0 10px 40px rgba(212, 175, 55, 0.6)); }
         }
 
         .login-header h1 {

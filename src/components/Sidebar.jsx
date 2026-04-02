@@ -39,8 +39,11 @@ const Sidebar = () => {
   return (
     <aside className="sidebar glass">
       <div className="sidebar-header">
-        <img src="/logo.png" alt="Orion Dorado" className="sidebar-logo" />
-        <h1 className="sidebar-title">ORIÓN <span className="gold-text">DORADO</span></h1>
+        <img src="/logo.png" alt="Orion Dorado Logo" className="sidebar-logo" />
+        <div className="sidebar-title-group">
+          <h1 className="sidebar-title">ORIÓN <span className="gold-text">DORADO</span></h1>
+          <p className="sidebar-subtitle">CASA DE ELECTRICIDAD</p>
+        </div>
       </div>
       
       <nav className="sidebar-nav">
@@ -104,11 +107,28 @@ const Sidebar = () => {
           filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3));
         }
 
+        .sidebar-title-group {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.25rem;
+        }
+
         .sidebar-title {
-          font-size: 1.2rem;
+          font-size: 1.1rem;
           font-weight: 800;
           letter-spacing: 2px;
           text-align: center;
+          line-height: 1.2;
+        }
+
+        .sidebar-subtitle {
+          font-size: 0.6rem;
+          font-weight: 500;
+          letter-spacing: 1.5px;
+          color: var(--text-secondary);
+          opacity: 0.8;
+          text-transform: uppercase;
         }
 
         .gold-text {
