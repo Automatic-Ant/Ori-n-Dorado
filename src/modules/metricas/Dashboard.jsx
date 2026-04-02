@@ -9,12 +9,15 @@ import {
   Banknote,
   CreditCard,
   PlusCircle,
-  MinusCircle
+  MinusCircle,
+  Download
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import { useProductStore } from '../../store/productStore';
 import { useSaleStore } from '../../store/saleStore';
+import { useAuthStore } from '../../store/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import Modal from '../../components/Modal';
 import { useCajaStore } from '../../store/cajaStore';
@@ -50,6 +53,72 @@ const Dashboard = () => {
   };
 
   const cajaMovements = useCajaStore((state) => state.movements);
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === 'admin';
+
+  const [exportMonth, setExportMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const handleExportExcel = () => {
+    const [year, month] = exportMonth.split('-').map(Number);
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+
+    const monthlySales = sales.filter(
+      (s) => s.date && s.date.startsWith(prefix)
+    );
+
+    // Sheet 1: Ventas
+    const salesRows = monthlySales.map((s) => ({
+      'ID':            s.id,
+      'Fecha':         s.date ? new Date(s.date).toLocaleDateString('es-AR') : '',
+      'Hora':          s.time || '',
+      'Cliente':       s.customerName || s.customerDni || 'Cliente General',
+      'Vendedor':      s.sellerName || '',
+      'Método Pago':   s.paymentMethod || '',
+      'Descuento':     s.discount || 0,
+      'Total':         s.total || 0,
+      'Estado':        s.status === 'cancelado' ? 'Cancelado' : 'Completada',
+    }));
+
+    // Sheet 2: Detalle de items
+    const itemRows = [];
+    monthlySales.forEach((s) => {
+      (s.items || []).forEach((item) => {
+        itemRows.push({
+          'Venta ID':   s.id,
+          'Fecha':      s.date ? new Date(s.date).toLocaleDateString('es-AR') : '',
+          'Producto':   item.name,
+          'Código':     item.code || '',
+          'Cantidad':   item.quantity,
+          'Precio Unit.': item.price,
+          'Subtotal':   item.price * item.quantity,
+          'Estado Venta': s.status === 'cancelado' ? 'Cancelado' : 'Completada',
+        });
+      });
+    });
+
+    // Sheet 3: Movimientos de caja
+    const cajaRows = cajaMovements
+      .filter((m) => m.date && m.date.startsWith(prefix))
+      .map((m) => ({
+        'Fecha':       m.date ? new Date(m.date).toLocaleDateString('es-AR') : '',
+        'Hora':        m.time || '',
+        'Tipo':        m.type === 'ingreso' ? 'Ingreso' : 'Egreso',
+        'Monto':       m.amount,
+        'Descripción': m.description || '',
+        'Usuario':     m.sellerName || '',
+      }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesRows),  'Ventas');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itemRows),   'Detalle Productos');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cajaRows),   'Caja');
+
+    const monthLabel = new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+    XLSX.writeFile(wb, `backup_${prefix}.xlsx`);
+  };
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -71,6 +140,21 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
+      {isAdmin && (
+        <div className="export-bar">
+          <span className="export-label"><Download size={15} /> Exportar backup mensual:</span>
+          <input
+            type="month"
+            value={exportMonth}
+            onChange={(e) => setExportMonth(e.target.value)}
+            className="month-picker"
+          />
+          <button className="btn-export" onClick={handleExportExcel}>
+            Descargar Excel
+          </button>
+        </div>
+      )}
+
       <div className="daily-totals-row">
         <div className="daily-card card glass efectivo-card">
           <div className="daily-card-icon">
@@ -348,6 +432,59 @@ const Dashboard = () => {
       <style jsx>{`
         .dashboard {
           padding-bottom: 2rem;
+        }
+
+        .export-bar {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.85rem 1.25rem;
+          background: rgba(212, 175, 55, 0.05);
+          border: 1px solid rgba(212, 175, 55, 0.2);
+          border-radius: 12px;
+          flex-wrap: wrap;
+        }
+
+        .export-label {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--primary-gold);
+          white-space: nowrap;
+        }
+
+        .month-picker {
+          background: var(--surface-lighter);
+          border: 1px solid var(--border-color);
+          color: white;
+          padding: 0.4rem 0.75rem;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          outline: none;
+          cursor: pointer;
+        }
+
+        .month-picker:focus {
+          border-color: var(--primary-gold);
+        }
+
+        .btn-export {
+          padding: 0.45rem 1.1rem;
+          background: var(--primary-gold);
+          color: #000;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-export:hover {
+          background: #e8c547;
+          transform: translateY(-1px);
         }
 
         .daily-totals-row {
