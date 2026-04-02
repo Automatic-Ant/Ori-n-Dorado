@@ -199,9 +199,11 @@ const ImportExcelModal = ({ onClose, onImport }) => {
               <button
                 className="btn-primary"
                 onClick={handleImport}
-                disabled={importing || (mapping.code === undefined || mapping.name === undefined)}
+                disabled={importing || mapping.code === undefined || mapping.name === undefined}
               >
-                {importing ? 'Importando...' : `Importar ${rows.length} productos`}
+                {importing
+                  ? <><span className="spinner" /> Importando {rows.length} productos...</>
+                  : `Importar ${rows.length} productos`}
               </button>
             </div>
           </div>
@@ -469,6 +471,27 @@ const ImportExcelModal = ({ onClose, onImport }) => {
           border-radius: 10px;
           cursor: pointer;
           font-weight: 600;
+        }
+
+        .btn-primary:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .spinner {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(0,0,0,0.3);
+          border-top-color: #000;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          margin-right: 6px;
+          vertical-align: middle;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

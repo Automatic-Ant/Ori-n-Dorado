@@ -28,6 +28,7 @@ const Stock = () => {
   const products = useProductStore((state) => state.products);
   const deleteProduct = useProductStore((state) => state.deleteProduct);
   const addProduct = useProductStore((state) => state.addProduct);
+  const bulkAddProducts = useProductStore((state) => state.bulkAddProducts);
   const updateProduct = useProductStore((state) => state.updateProduct);
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'admin';
@@ -177,11 +178,8 @@ const Stock = () => {
   };
 
   const handleBulkImport = async (productList) => {
-    const total = productList.length;
-    for (const p of productList) {
-      await addProduct(p);
-    }
-    return { total, skipped: 0 };
+    const result = await bulkAddProducts(productList);
+    return { total: result.inserted, skipped: result.skipped };
   };
 
   return (

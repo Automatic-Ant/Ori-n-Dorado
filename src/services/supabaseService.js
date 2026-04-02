@@ -28,6 +28,41 @@ export const supabaseService = {
     }));
   },
 
+  async bulkAddProducts(products) {
+    const CHUNK = 100; // Supabase insert limit per request
+    let inserted = 0;
+    let skipped = 0;
+
+    for (let i = 0; i < products.length; i += CHUNK) {
+      const chunk = products.slice(i, i + CHUNK).map(p => ({
+        code:         p.code,
+        name:         p.name,
+        category:     p.category,
+        stock:        p.stock,
+        codigo_precio: p.codigoPrecio,
+        price:        p.price,
+        base_code:    p.baseCode,
+        min_stock:    p.minStock,
+        unit:         p.unit,
+        marca:        p.marca || '',
+      }));
+
+      const { error } = await supabase
+        .from('products')
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error('Bulk insert error:', error);
+        skipped += chunk.length;
+      } else {
+        inserted += chunk.length;
+      }
+    }
+
+    return { inserted, skipped };
+  },
+
   async addProduct(product) {
     const { error } = await supabase
       .from('products')
