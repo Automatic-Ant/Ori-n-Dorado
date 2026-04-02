@@ -26,6 +26,7 @@ import { useCustomerStore } from '../../store/customerStore';
 import { useCart } from './useCart';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getCurrentISO } from '../../utils/dateHelpers';
+import { generateQuotePDF } from './generateQuotePDF';
 
 const PAYMENT_METHODS = [
   { key: 'efectivo', label: 'Efectivo', Icon: Banknote },
@@ -257,28 +258,7 @@ const Sales = () => {
 
   const handleQuote = () => {
     if (cart.length === 0) return;
-
-    const lines = cart.map(
-      (item) => `${item.name} x${item.quantity}  ${formatCurrency(item.price * item.quantity)}`
-    );
-
-    if (discount > 0) {
-      lines.push('');
-      lines.push(`Subtotal: ${formatCurrency(total)}`);
-      lines.push(`Descuento efectivo (${discountPct}%): -${formatCurrency(discount)}`);
-    }
-
-    lines.push('');
-    lines.push(`TOTAL: ${formatCurrency(finalTotal)}`);
-
-    const text = lines.join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `presupuesto_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    generateQuotePDF({ cart, total, discount, discountPct, finalTotal, customerDni });
   };
 
   return (
