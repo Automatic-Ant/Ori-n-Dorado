@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../store/customerStore';
 import { useProductStore } from '../../store/productStore';
 import { useSaleStore } from '../../store/saleStore';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 const CreditNotes = () => {
   const customers = useCustomerStore((state) => state.customers);
@@ -29,7 +30,7 @@ const CreditNotes = () => {
     }
     // Add Credit Note to History
     addCreditNote({
-      customer: formData.customer,
+      customer_name: formData.customer,
       product: formData.product,
       quantity: formData.quantity,
       amount: formData.amount,
@@ -134,7 +135,7 @@ const CreditNotes = () => {
                 <div key={i} className="receipt-item">
                   <div className="receipt-icon"><Receipt size={20} /></div>
                   <div className="receipt-details">
-                    <span className="receipt-customer">{note.customer}</span>
+                    <span className="receipt-customer">{note.customer_name || note.customer}</span>
                     <span className="receipt-meta">{new Date(note.date).toLocaleDateString('es-AR')} - {note.product} ({note.quantity}u)</span>
                   </div>
                   <div className="receipt-amount">{formatCurrency(note.amount)}</div>
