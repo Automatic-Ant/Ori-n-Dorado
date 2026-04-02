@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  TrendingUp, 
-  ChevronDown, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  TrendingUp,
+  ChevronDown,
   MoreVertical,
   AlertCircle,
   Save,
@@ -12,7 +12,8 @@ import {
   Filter,
   Package,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
@@ -20,6 +21,7 @@ import { useProductStore } from '../../store/productStore';
 import { useAuthStore } from '../../store/authStore';
 import Modal from '../../components/Modal';
 import { formatCurrency } from '../../utils/formatCurrency';
+import ImportExcelModal from './ImportExcelModal';
 
 const Stock = () => {
   const location = useLocation();
@@ -52,6 +54,7 @@ const Stock = () => {
 
   // Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -173,6 +176,14 @@ const Stock = () => {
     }
   };
 
+  const handleBulkImport = async (productList) => {
+    const total = productList.length;
+    for (const p of productList) {
+      await addProduct(p);
+    }
+    return { total, skipped: 0 };
+  };
+
   return (
     <div className="stock-page">
       <header className="page-header">
@@ -180,12 +191,20 @@ const Stock = () => {
           <h2 className="page-title">Inventario</h2>
           <p className="page-subtitle">Gestión de productos y control de existencias.</p>
         </div>
-        {isAdmin && (
-          <button className="btn-primary" onClick={() => handleOpenModal()}>
-            <Plus size={20} />
-            Nuevo Producto
-          </button>
-        )}
+        <div className="header-actions">
+          {isAdmin && (
+            <button className="btn-import" onClick={() => setIsImportModalOpen(true)}>
+              <Upload size={18} />
+              Importar Excel
+            </button>
+          )}
+          {isAdmin && (
+            <button className="btn-primary" onClick={() => handleOpenModal()}>
+              <Plus size={20} />
+              Nuevo Producto
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="stock-controls">
@@ -414,6 +433,13 @@ const Stock = () => {
         </form>
       </Modal>
 
+      {isImportModalOpen && (
+        <ImportExcelModal
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleBulkImport}
+        />
+      )}
+
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={isDeleteModalOpen}
@@ -448,6 +474,32 @@ const Stock = () => {
           justify-content: space-between;
           align-items: flex-end;
           margin-bottom: 0.5rem;
+        }
+
+        .header-actions {
+          display: flex;
+          gap: 0.75rem;
+          align-items: center;
+        }
+
+        .btn-import {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.25rem;
+          background: rgba(46, 204, 113, 0.1);
+          border: 1px solid rgba(46, 204, 113, 0.4);
+          color: #2ecc71;
+          border-radius: 12px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-import:hover {
+          background: rgba(46, 204, 113, 0.2);
+          border-color: #2ecc71;
         }
 
         .stock-controls {
