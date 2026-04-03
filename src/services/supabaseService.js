@@ -33,8 +33,13 @@ export const supabaseService = {
     let inserted = 0;
     let skipped = 0;
 
-    for (let i = 0; i < products.length; i += CHUNK) {
-      const chunk = products.slice(i, i + CHUNK).map(p => ({
+    // Deduplicate by code — keep last occurrence to avoid upsert 500 errors
+    const seen = new Map();
+    for (const p of products) seen.set(p.code, p);
+    const deduped = [...seen.values()];
+
+    for (let i = 0; i < deduped.length; i += CHUNK) {
+      const chunk = deduped.slice(i, i + CHUNK).map(p => ({
         code:          p.code,
         name:          p.name,
         category:      p.category,
