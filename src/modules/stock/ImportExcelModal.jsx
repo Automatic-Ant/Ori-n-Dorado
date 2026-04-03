@@ -63,10 +63,13 @@ const ImportExcelModal = ({ onClose, onImport }) => {
     reader.readAsBinaryString(file);
   };
 
+  const [importError, setImportError] = useState(null);
+
   const handleImport = async () => {
     if (mapping.code === undefined || mapping.name === undefined) return;
 
     setImporting(true);
+    setImportError(null);
     const products = rows.map(row => {
       const get = (key) => {
         const idx = mapping[key];
@@ -91,10 +94,16 @@ const ImportExcelModal = ({ onClose, onImport }) => {
       };
     }).filter(p => p.code && p.name);
 
-    const result = await onImport(products);
-    setImportResult(result);
-    setImporting(false);
-    setStep('preview');
+    try {
+      const result = await onImport(products);
+      setImportResult(result);
+      setStep('preview');
+    } catch (err) {
+      console.error('Import error:', err);
+      setImportError('Ocurrió un error al importar. Revisá la consola para más detalles.');
+    } finally {
+      setImporting(false);
+    }
   };
 
   const preview = rows.slice(0, 5);
@@ -190,9 +199,12 @@ const ImportExcelModal = ({ onClose, onImport }) => {
               </div>
             </div>
 
-            {(!mapping.code && mapping.code !== 0) || (!mapping.name && mapping.name !== 0) ? (
+            {((!mapping.code && mapping.code !== 0) || (!mapping.name && mapping.name !== 0)) && (
               <p className="map-error"><AlertTriangle size={14} /> Los campos Código y Nombre son obligatorios.</p>
-            ) : null}
+            )}
+            {importError && (
+              <p className="map-error"><AlertTriangle size={14} /> {importError}</p>
+            )}
 
             <div className="map-actions">
               <button className="btn-secondary" onClick={() => setStep('upload')}>← Volver</button>
