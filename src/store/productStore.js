@@ -91,7 +91,9 @@ export const useProductStore = create((set, get) => ({
   },
 
   updateProduct: async (id, updatedProduct) => {
-    // 1. Local update
+    const previousProducts = get().products;
+
+    // 1. Optimistic local update
     set((state) => {
       const updatedProducts = state.products.map(p => p.id === id ? { ...p, ...updatedProduct } : p);
       localStorage.setItem('orion_products', JSON.stringify(updatedProducts));
@@ -99,7 +101,14 @@ export const useProductStore = create((set, get) => ({
     });
 
     // 2. Sync to Supabase
-    await supabaseService.updateProduct(id, updatedProduct);
+    try {
+      await supabaseService.updateProduct(id, updatedProduct);
+    } catch (e) {
+      console.error('Update Product Error, rolling back:', e);
+      set({ products: previousProducts });
+      localStorage.setItem('orion_products', JSON.stringify(previousProducts));
+      throw e;
+    }
   },
 
   deleteProduct: async (id) => {

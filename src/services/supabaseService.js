@@ -89,6 +89,7 @@ export const supabaseService = {
     const { error } = await supabase
       .from('products')
       .update({
+        code: productData.code,
         name: productData.name,
         category: productData.category,
         stock: productData.stock,

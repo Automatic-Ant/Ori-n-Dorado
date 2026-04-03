@@ -72,6 +72,14 @@ const Stock = () => {
     marca: ''
   });
 
+  const stockStats = useMemo(() => {
+    const totalProducts = products.length;
+    const totalUnits = products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
+    const lowStock = products.filter(p => Number(p.stock) <= Number(p.minStock) && Number(p.stock) > 0).length;
+    const noStock = products.filter(p => Number(p.stock) === 0).length;
+    return { totalProducts, totalUnits, lowStock, noStock };
+  }, [products]);
+
   const marcaOptions = useMemo(() => {
     const marcas = [...new Set(products.map(p => p.marca).filter(Boolean))].sort();
     return marcas;
@@ -140,7 +148,7 @@ const Stock = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const isCableMetros = formData.category === 'Cables' && formData.unit === 'metro';
     const finalCodigoPrecio = parseFloat(formData.codigoPrecio) || 0;
@@ -155,12 +163,16 @@ const Stock = () => {
       minStock: Number(formData.minStock) || 0
     };
 
-    if (editingProduct) {
-      updateProduct(editingProduct.id, data);
-    } else {
-      addProduct(data);
+    try {
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, data);
+      } else {
+        await addProduct(data);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert('Error al guardar en Supabase. Revisá la consola para más detalles.');
     }
-    setIsModalOpen(false);
   };
 
   const confirmDelete = (product) => {
@@ -204,6 +216,37 @@ const Stock = () => {
           )}
         </div>
       </header>
+
+      <div className="stock-stats-row">
+        <div className="stat-card card glass">
+          <Package size={20} className="stat-icon" />
+          <div className="stat-info">
+            <span className="stat-value">{stockStats.totalProducts}</span>
+            <span className="stat-label">Productos</span>
+          </div>
+        </div>
+        <div className="stat-card card glass">
+          <TrendingUp size={20} className="stat-icon" />
+          <div className="stat-info">
+            <span className="stat-value">{stockStats.totalUnits.toLocaleString('es-AR')}</span>
+            <span className="stat-label">Unidades en stock</span>
+          </div>
+        </div>
+        <div className="stat-card card glass warning">
+          <AlertCircle size={20} className="stat-icon" />
+          <div className="stat-info">
+            <span className="stat-value">{stockStats.lowStock}</span>
+            <span className="stat-label">Stock bajo</span>
+          </div>
+        </div>
+        <div className="stat-card card glass danger">
+          <AlertTriangle size={20} className="stat-icon" />
+          <div className="stat-info">
+            <span className="stat-value">{stockStats.noStock}</span>
+            <span className="stat-label">Sin stock</span>
+          </div>
+        </div>
+      </div>
 
       <div className="stock-controls">
         <div className="search-bar card glass">
@@ -498,6 +541,49 @@ const Stock = () => {
         .btn-import:hover {
           background: rgba(46, 204, 113, 0.2);
           border-color: #2ecc71;
+        }
+
+        .stock-stats-row {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1rem;
+        }
+
+        .stat-card {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem 1.5rem;
+          border-radius: 14px;
+        }
+
+        .stat-card .stat-icon {
+          color: var(--primary-gold);
+          flex-shrink: 0;
+        }
+
+        .stat-card.warning .stat-icon { color: #f39c12; }
+        .stat-card.danger .stat-icon  { color: var(--error); }
+
+        .stat-info {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: white;
+          line-height: 1;
+        }
+
+        .stat-card.warning .stat-value { color: #f39c12; }
+        .stat-card.danger .stat-value  { color: var(--error); }
+
+        .stat-label {
+          font-size: 0.78rem;
+          color: var(--text-secondary);
+          margin-top: 0.25rem;
         }
 
         .stock-controls {
