@@ -47,16 +47,15 @@ export const supabaseService = {
         marca:         p.marca || '',
       }));
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('products')
-        .upsert(chunk, { onConflict: 'code', ignoreDuplicates: false })
-        .select();
+        .upsert(chunk, { onConflict: 'code' });
 
       if (error) {
         console.error('Bulk upsert error:', error);
         skipped += chunk.length;
       } else {
-        inserted += data?.length ?? chunk.length;
+        inserted += chunk.length;
       }
     }
 
