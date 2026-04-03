@@ -94,6 +94,16 @@ const ImportExcelModal = ({ onClose, onImport }) => {
       };
     }).filter(p => p.code && p.name);
 
+    // Detectar códigos duplicados en el Excel
+    const codeCount = {};
+    for (const p of products) codeCount[p.code] = (codeCount[p.code] || 0) + 1;
+    const duplicates = Object.entries(codeCount).filter(([, n]) => n > 1).map(([code]) => code);
+    if (duplicates.length > 0) {
+      const preview = duplicates.slice(0, 5).join(', ');
+      const extra = duplicates.length > 5 ? ` y ${duplicates.length - 5} más` : '';
+      setImportError(`Tu Excel tiene códigos repetidos: ${preview}${extra}. Se va a conservar solo la última fila de cada uno.`);
+    }
+
     try {
       const result = await onImport(products);
       setImportResult(result);
