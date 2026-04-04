@@ -208,7 +208,7 @@ const Dashboard = () => {
                   <td className="caja-desc">{m.description || '—'}</td>
                   <td className="caja-seller">{m.sellerName || '—'}</td>
                   <td>
-                    <div className="sale-time"><Clock size={13} />{m.time}</div>
+                    <div className="sale-time"><Clock size={13} />{m.date ? new Date(m.date).toLocaleDateString('es-AR') : ''} {m.time}</div>
                   </td>
                   <td className={`text-right caja-amount ${m.type}`}>
                     {m.type === 'ingreso' ? '+' : '−'} {formatCurrency(m.amount)}
@@ -262,7 +262,7 @@ const Dashboard = () => {
                     <td>
                       <div className="sale-time">
                         <Clock size={14} />
-                        <span>{sale.time}</span>
+                        <span>{sale.date ? new Date(sale.date).toLocaleDateString('es-AR') : ''} {sale.time}</span>
                       </div>
                     </td>
                     <td>
