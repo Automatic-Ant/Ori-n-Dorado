@@ -1083,10 +1083,25 @@ const Dashboard = () => {
             grid-template-columns: 1fr;
           }
           .sales-table {
-            min-width: 700px;
+            min-width: 600px;
           }
           .details-header-info {
             grid-template-columns: 1fr;
+          }
+          .recent-sales {
+            padding: 1rem;
+          }
+          .action-btn span {
+            display: none;
+          }
+          .action-btn {
+            padding: 6px;
+            width: 32px;
+            justify-content: center;
+          }
+          .export-bar {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
       `}</style>

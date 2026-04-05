@@ -7,21 +7,22 @@ import {
   Wallet,
   AlertTriangle,
   CheckCircle,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { NavLink, Link } from 'react-router-dom';
 import { useProductStore } from '../store/productStore';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const products = useProductStore((state) => state.products);
   const lowStockProducts = products.filter(p => {
     const stockVal = Number(p.stock) || 0;
     const minStockVal = Number(p.minStock) || 0;
-    
+
     const pName = p.name ? p.name.toString().trim() : '';
     const pCode = p.code ? p.code.toString().trim() : '';
     if (!pName && !pCode) return false;
-    
+
     return stockVal <= minStockVal;
   });
 
@@ -37,21 +38,25 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="sidebar glass">
+    <aside className={`sidebar glass${isOpen ? ' open' : ''}`}>
       <div className="sidebar-header">
         <img src="/logo.png" alt="Orion Dorado Logo" className="sidebar-logo" />
         <div className="sidebar-title-group">
           <h1 className="sidebar-title">ORIÓN <span className="gold-text">DORADO</span></h1>
           <p className="sidebar-subtitle">CASA DE ELECTRICIDAD</p>
         </div>
+        <button className="sidebar-close-btn" onClick={onClose} title="Cerrar menú">
+          <X size={20} />
+        </button>
       </div>
-      
+
       <nav className="sidebar-nav">
         {menuItems.map((item) => (
-          <NavLink 
-            key={item.path} 
+          <NavLink
+            key={item.path}
             to={item.path}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={onClose}
           >
             {item.icon}
             <span>{item.label}</span>
@@ -60,10 +65,11 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <Link 
-          to="/stock" 
+        <Link
+          to="/stock"
           state={{ filterLowStock: lowStockCount > 0 }}
           className={`stock-alert-mini ${lowStockCount > 0 ? 'danger' : 'success'}`}
+          onClick={onClose}
         >
           {lowStockCount > 0 ? (
             <>
@@ -99,6 +105,29 @@ const Sidebar = () => {
           align-items: center;
           gap: 1rem;
           margin-bottom: 3rem;
+          position: relative;
+        }
+
+        .sidebar-close-btn {
+          display: none;
+          position: absolute;
+          top: 0;
+          right: 0;
+          background: transparent;
+          border: 1px solid var(--border-color);
+          color: var(--text-secondary);
+          border-radius: 8px;
+          width: 32px;
+          height: 32px;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .sidebar-close-btn:hover {
+          border-color: var(--error);
+          color: var(--error);
         }
 
         .sidebar-logo {
@@ -251,6 +280,38 @@ const Sidebar = () => {
           .stock-alert-mini {
             padding: 0.65rem;
             font-size: 0.75rem;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .sidebar {
+            width: 280px;
+            padding: 1.5rem;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 200;
+          }
+          .sidebar.open {
+            transform: translateX(0);
+          }
+          .sidebar-close-btn {
+            display: flex;
+          }
+          .sidebar-header {
+            margin-bottom: 2rem;
+          }
+          .sidebar-logo {
+            width: 64px;
+          }
+          .sidebar-title {
+            font-size: 1rem;
+          }
+          .nav-item {
+            padding: 0.9rem 1rem;
+            font-size: 1rem;
+          }
+          .sidebar-nav {
+            gap: 0.4rem;
           }
         }
       `}</style>

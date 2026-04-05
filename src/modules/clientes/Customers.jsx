@@ -683,6 +683,12 @@ const Customers = () => {
           .note-row { grid-template-columns: 1fr; gap: 1rem; }
           .note-reason { border-left: none; border-top: 1px solid var(--border-color); padding-top: 1rem; }
         }
+
+        @media (max-width: 768px) {
+          .customers-grid {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
     </div>
   );

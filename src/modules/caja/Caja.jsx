@@ -489,6 +489,9 @@ const Caja = () => {
           .caja-summary-row {
             grid-template-columns: 1fr;
           }
+          .caja-form-card {
+            padding: 1rem;
+          }
         }
       `}</style>
     </div>

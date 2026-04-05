@@ -924,6 +924,24 @@ const Stock = () => {
             gap: 1.25rem;
           }
         }
+
+        @media (max-width: 768px) {
+          .stock-stats-row {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .stock-page {
+            gap: 1rem;
+          }
+          .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+          .header-actions {
+            width: 100%;
+            flex-wrap: wrap;
+          }
+        }
       `}</style>
     </div>
   );

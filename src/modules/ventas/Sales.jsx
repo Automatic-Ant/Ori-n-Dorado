@@ -1204,6 +1204,22 @@ const Sales = () => {
             max-height: 400px;
           }
         }
+
+        @media (max-width: 768px) {
+          .sales-container {
+            gap: 1rem;
+          }
+          .search-input-wrapper input {
+            font-size: 1rem;
+            height: 50px;
+          }
+          .cart-header h2 {
+            font-size: 1rem;
+          }
+          .results-container {
+            max-height: 320px;
+          }
+        }
       `}</style>
     </div>
   );

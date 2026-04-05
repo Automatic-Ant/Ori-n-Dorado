@@ -1,18 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../store/authStore';
-import { LogOut } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuthStore();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="layout">
-      <Sidebar />
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
       <main className="main-content">
         <header className="top-header glass">
-          <div className="search-bar-mock">
-            {/* Contextual info or global search could go here */}
+          <div className="header-left-group">
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} title="Menú">
+              <Menu size={22} />
+            </button>
             <span className="current-date">{new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
           </div>
           <div className="user-profile">
@@ -40,11 +48,20 @@ const Layout = ({ children }) => {
           background-attachment: fixed;
         }
 
+        .sidebar-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.65);
+          z-index: 150;
+          backdrop-filter: blur(2px);
+        }
+
         .main-content {
           flex: 1;
           margin-left: 260px;
           display: flex;
           flex-direction: column;
+          min-width: 0;
         }
 
         .top-header {
@@ -59,6 +76,32 @@ const Layout = ({ children }) => {
           z-index: 90;
         }
 
+        .header-left-group {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .hamburger-btn {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          background: transparent;
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          color: white;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: all 0.2s;
+        }
+
+        .hamburger-btn:hover {
+          border-color: var(--primary-gold);
+          color: var(--primary-gold);
+        }
+
         .current-date {
           text-transform: capitalize;
           color: var(--text-secondary);
@@ -69,18 +112,6 @@ const Layout = ({ children }) => {
           display: flex;
           align-items: center;
           gap: 1rem;
-        }
-
-        .avatar {
-          width: 40px;
-          height: 40px;
-          background: var(--primary-gold);
-          color: black;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
         }
 
         .user-info {
@@ -157,6 +188,38 @@ const Layout = ({ children }) => {
           }
         }
 
+        @media (max-width: 768px) {
+          .main-content {
+            margin-left: 0;
+          }
+          .top-header {
+            height: 56px;
+            padding: 0 1rem;
+          }
+          .page-container {
+            padding: 1rem;
+          }
+          .hamburger-btn {
+            display: flex;
+          }
+          .current-date {
+            font-size: 0.75rem;
+            /* On very small screens hide the long date */
+          }
+          .user-info {
+            display: none;
+          }
+          .logout-btn {
+            width: 36px;
+            height: 36px;
+          }
+        }
+
+        @media (max-width: 400px) {
+          .current-date {
+            display: none;
+          }
+        }
       `}</style>
     </div>
   );
