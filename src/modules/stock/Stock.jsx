@@ -69,7 +69,8 @@ const Stock = () => {
     stock: '',
     minStock: '',
     unit: 'unidad',
-    marca: ''
+    marca: '',
+    listPrice: ''
   });
 
   const stockStats = useMemo(() => {
@@ -125,7 +126,8 @@ const Stock = () => {
         stock: product.stock || 0,
         minStock: product.minStock || 0,
         unit: product.unit || 'unidad',
-        marca: product.marca || ''
+        marca: product.marca || '',
+        listPrice: product.listPrice || ''
       });
     } else {
       setEditingProduct(null);
@@ -137,7 +139,9 @@ const Stock = () => {
         baseCode: globalBaseCode,
         stock: '',
         minStock: '',
-        unit: 'unidad'
+        unit: 'unidad',
+        marca: '',
+        listPrice: ''
       });
     }
     setIsModalOpen(true);
@@ -160,7 +164,8 @@ const Stock = () => {
       baseCode: finalBaseCode,
       price: finalCodigoPrecio * finalBaseCode,
       stock: Number(formData.stock) || 0,
-      minStock: Number(formData.minStock) || 0
+      minStock: Number(formData.minStock) || 0,
+      listPrice: parseFloat(formData.listPrice) || 0
     };
 
     try {
@@ -326,6 +331,7 @@ const Stock = () => {
               <th>Nombre del Producto</th>
               <th>Marca</th>
               <th>Categoría</th>
+              <th>Precio de Lista</th>
               <th>Precio</th>
               <th>Stock Actual</th>
               <th>Unidad</th>
@@ -356,6 +362,7 @@ const Stock = () => {
                   </td>
                   <td>{product.marca || '-'}</td>
                   <td>{product.category}</td>
+                  <td className="list-price-cell">{product.listPrice ? formatCurrency(product.listPrice) : '-'}</td>
                   <td className="price-cell">{formatCurrency(product.price)}</td>
                   <td>
                     <span className={`stock-count ${Number(product.stock) <= Number(product.minStock) ? 'critical' : ''}`}>
@@ -455,6 +462,13 @@ const Stock = () => {
                 <input type="number" step="any" name="baseCode" required value={formData.baseCode} onChange={handleInputChange} />
               </div>
             )}
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label>Precio de Lista ($)</label>
+              <input type="number" step="any" name="listPrice" placeholder="Precio al que compramos" value={formData.listPrice} onChange={handleInputChange} />
+            </div>
           </div>
 
           <div className="form-grid-2">
@@ -753,7 +767,12 @@ const Stock = () => {
           border: 1px solid rgba(231, 76, 60, 0.2);
         }
 
-                .price-cell {
+                .list-price-cell {
+          color: var(--text-secondary);
+          font-weight: 600;
+        }
+
+        .price-cell {
           color: #fff;
           font-weight: 700;
         }

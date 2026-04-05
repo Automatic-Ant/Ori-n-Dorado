@@ -13,9 +13,13 @@ CREATE TABLE IF NOT EXISTS public.products (
     base_code NUMERIC DEFAULT 1,
     min_stock NUMERIC DEFAULT 0,
     unit TEXT DEFAULT 'unidad',
+    list_price NUMERIC DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration: add list_price column if it doesn't exist
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS list_price NUMERIC DEFAULT 0;
 
 -- 3. CUSTOMERS TABLE
 CREATE TABLE IF NOT EXISTS public.customers (

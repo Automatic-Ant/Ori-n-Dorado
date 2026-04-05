@@ -80,9 +80,10 @@ export const supabaseService = {
         base_code: product.baseCode,
         min_stock: product.minStock,
         unit: product.unit,
-        marca: product.marca || ''
+        marca: product.marca || '',
+        list_price: product.listPrice || 0
       }]);
-    
+
     if (error) {
       console.error('Error adding product to Supabase:', error);
       throw error;
@@ -102,7 +103,8 @@ export const supabaseService = {
         base_code: productData.baseCode,
         min_stock: productData.minStock,
         unit: productData.unit,
-        marca: productData.marca || ''
+        marca: productData.marca || '',
+        list_price: productData.listPrice || 0
       })
       .eq('id', id);
     
