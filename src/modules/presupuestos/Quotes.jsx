@@ -533,6 +533,10 @@ const Quotes = () => {
           padding: 1rem; border-radius: 10px; color: white; cursor: pointer;
         }
 
+        @media (max-width: 1366px) {
+          .quotes-container { height: calc(100vh - 116px); gap: 1.25rem; }
+        }
+
         @media (max-width: 1200px) {
           .quotes-container { grid-template-columns: 1fr; height: auto; }
           .results-container { max-height: 400px; }

@@ -87,6 +87,16 @@ const Modal = ({ isOpen, onClose, title, children }) => {
           flex-direction: column;
           gap: 1.5rem;
         }
+
+        @media (max-width: 1366px) {
+          .modal-content {
+            padding: 1.5rem;
+            max-height: 85vh;
+          }
+          .modal-header {
+            margin-bottom: 1.25rem;
+          }
+        }
       `}</style>
     </AnimatePresence>
   );

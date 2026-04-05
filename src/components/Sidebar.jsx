@@ -200,11 +200,58 @@ const Sidebar = () => {
         }
 
         .warning-icon { animation: pulse 2s infinite; }
-        
+
         @keyframes pulse {
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
+        }
+
+        @media (max-width: 1600px) {
+          .sidebar {
+            width: 240px;
+            padding: 1.25rem;
+          }
+          .sidebar-header {
+            margin-bottom: 2rem;
+          }
+          .sidebar-logo {
+            width: 70px;
+          }
+        }
+
+        @media (max-width: 1366px) {
+          .sidebar {
+            width: 210px;
+            padding: 1rem;
+          }
+          .sidebar-header {
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+          }
+          .sidebar-logo {
+            width: 54px;
+          }
+          .sidebar-title {
+            font-size: 0.95rem;
+            letter-spacing: 1.5px;
+          }
+          .sidebar-subtitle {
+            font-size: 0.55rem;
+            letter-spacing: 1px;
+          }
+          .sidebar-nav {
+            gap: 0.25rem;
+          }
+          .nav-item {
+            padding: 0.65rem 0.75rem;
+            font-size: 0.9rem;
+            gap: 0.75rem;
+          }
+          .stock-alert-mini {
+            padding: 0.65rem;
+            font-size: 0.75rem;
+          }
         }
       `}</style>
     </aside>

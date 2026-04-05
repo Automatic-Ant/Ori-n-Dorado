@@ -470,6 +470,21 @@ const Caja = () => {
           padding: 2rem;
         }
 
+        @media (max-width: 1366px) {
+          .caja-summary-row {
+            gap: 1rem;
+          }
+          .summary-card {
+            padding: 1rem 1.25rem;
+          }
+          .summary-amount {
+            font-size: 1.5rem;
+          }
+          .caja-form-card {
+            padding: 1.25rem;
+          }
+        }
+
         @media (max-width: 768px) {
           .caja-summary-row {
             grid-template-columns: 1fr;

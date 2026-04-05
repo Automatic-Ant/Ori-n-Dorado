@@ -1019,6 +1019,65 @@ const Dashboard = () => {
           font-style: italic;
         }
 
+        @media (max-width: 1366px) {
+          .daily-card {
+            padding: 1rem 1.25rem;
+            gap: 0.85rem;
+          }
+          .daily-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+          }
+          .daily-card-amount {
+            font-size: 1.4rem;
+          }
+          .daily-card-label {
+            font-size: 0.72rem;
+          }
+          .daily-totals-row {
+            gap: 1rem;
+            margin-bottom: 1rem;
+          }
+          .recent-sales {
+            padding: 1.25rem;
+            min-height: 0;
+          }
+          .caja-section {
+            padding: 1rem 1.25rem;
+          }
+          .section-header {
+            margin-bottom: 1.25rem;
+          }
+          .title-with-icon h3 {
+            font-size: 1.1rem;
+          }
+          .sales-table th {
+            padding: 0.5rem 0.6rem;
+            font-size: 0.75rem;
+          }
+          .sales-table td {
+            padding: 0.75rem 0.6rem;
+            font-size: 0.85rem;
+          }
+          .sale-amount {
+            font-size: 0.95rem;
+          }
+          .action-btn {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            height: 32px;
+          }
+          .caja-table th {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.72rem;
+          }
+          .caja-table td {
+            padding: 0.6rem 0.6rem;
+            font-size: 0.82rem;
+          }
+        }
+
         @media (max-width: 768px) {
           .daily-totals-row {
             grid-template-columns: 1fr;

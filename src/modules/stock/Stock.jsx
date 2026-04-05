@@ -908,6 +908,22 @@ const Stock = () => {
         .form-group input:focus, .form-group select:focus {
           border-color: var(--primary-gold);
         }
+
+        @media (max-width: 1366px) {
+          .stock-stats-row {
+            gap: 0.75rem;
+          }
+          .stat-card {
+            padding: 0.75rem 1rem;
+            gap: 0.75rem;
+          }
+          .stat-value {
+            font-size: 1.25rem;
+          }
+          .stock-page {
+            gap: 1.25rem;
+          }
+        }
       `}</style>
     </div>
   );

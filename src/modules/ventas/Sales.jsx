@@ -1188,6 +1188,13 @@ const Sales = () => {
           gap: 1rem;
         }
 
+        @media (max-width: 1366px) {
+          .sales-container {
+            height: calc(100vh - 116px);
+            gap: 1.25rem;
+          }
+        }
+
         @media (max-width: 1200px) {
           .sales-container {
             grid-template-columns: 1fr;

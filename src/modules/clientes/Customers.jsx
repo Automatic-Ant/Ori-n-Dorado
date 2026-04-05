@@ -669,6 +669,16 @@ const Customers = () => {
           opacity: 0.5;
         }
 
+        @media (max-width: 1366px) {
+          .customers-grid {
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+          }
+          .customer-card {
+            padding: 1.1rem;
+          }
+        }
+
         @media (max-width: 1100px) {
           .note-row { grid-template-columns: 1fr; gap: 1rem; }
           .note-reason { border-left: none; border-top: 1px solid var(--border-color); padding-top: 1rem; }

@@ -125,6 +125,38 @@ const Layout = ({ children }) => {
           flex: 1;
         }
 
+        @media (max-width: 1600px) {
+          .main-content {
+            margin-left: 240px;
+          }
+        }
+
+        @media (max-width: 1366px) {
+          .main-content {
+            margin-left: 210px;
+          }
+          .top-header {
+            height: 56px;
+            padding: 0 1.25rem;
+          }
+          .page-container {
+            padding: 1.25rem;
+          }
+          .current-date {
+            font-size: 0.8rem;
+          }
+          .user-name {
+            font-size: 0.85rem;
+          }
+          .user-role {
+            font-size: 0.7rem;
+          }
+          .logout-btn {
+            width: 34px;
+            height: 34px;
+          }
+        }
+
       `}</style>
     </div>
   );
