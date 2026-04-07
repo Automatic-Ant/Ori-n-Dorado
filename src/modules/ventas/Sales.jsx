@@ -302,7 +302,10 @@ const Sales = () => {
                   onClick={() => product.stock > 0 && handleAddToCart(product)}
                 >
                   <div className="prod-main">
-                    <span className="prod-code">{product.code}</span>
+                    <div className="prod-code-row">
+                      <span className="prod-code">{product.code}</span>
+                      {product.marca && <span className="prod-marca">{product.marca}</span>}
+                    </div>
                     <span className="prod-name">{product.name}</span>
                   </div>
                   <div className="prod-extra">
@@ -639,10 +642,22 @@ const Sales = () => {
           flex-direction: column;
         }
 
+        .prod-code-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
         .prod-code {
           font-size: 0.75rem;
           color: var(--primary-gold);
           font-weight: bold;
+        }
+
+        .prod-marca {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          font-weight: 500;
         }
 
         .prod-name {
