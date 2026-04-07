@@ -24,7 +24,8 @@ export const supabaseService = {
       baseCode: Number(item.base_code),
       minStock: Number(item.min_stock),
       unit: item.unit,
-      marca: item.marca || ''
+      marca: item.marca || '',
+      listPrice: Number(item.list_price) || 0
     }));
   },
 
@@ -112,7 +113,7 @@ export const supabaseService = {
   },
 
   async updateProduct(id, productData) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .update({
         code: productData.code,
@@ -127,11 +128,37 @@ export const supabaseService = {
         marca: productData.marca || '',
         list_price: productData.listPrice || 0
       })
-      .eq('id', id);
-    
+      .eq('id', id)
+      .select('id');
+
     if (error) {
       console.error('Error updating product in Supabase:', error);
       throw error;
+    }
+
+    if (!data || data.length === 0) {
+      // El UUID no coincidió con ningún producto en Supabase.
+      // Intentar por código (fallback para productos importados con ID desfasado).
+      const { error: error2 } = await supabase
+        .from('products')
+        .update({
+          name: productData.name,
+          category: productData.category,
+          stock: productData.stock,
+          codigo_precio: productData.codigoPrecio,
+          price: productData.price,
+          base_code: productData.baseCode,
+          min_stock: productData.minStock,
+          unit: productData.unit,
+          marca: productData.marca || '',
+          list_price: productData.listPrice || 0
+        })
+        .eq('code', productData.code);
+
+      if (error2) {
+        console.error('Error updating product by code fallback:', error2);
+        throw error2;
+      }
     }
   },
 
