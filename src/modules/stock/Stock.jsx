@@ -170,7 +170,7 @@ const Stock = () => {
 
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, data);
+        await updateProduct(editingProduct.id, data, editingProduct.code);
       } else {
         await addProduct(data);
       }

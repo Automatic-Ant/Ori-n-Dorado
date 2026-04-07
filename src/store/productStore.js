@@ -90,7 +90,7 @@ export const useProductStore = create((set, get) => ({
     }
   },
 
-  updateProduct: async (id, updatedProduct) => {
+  updateProduct: async (id, updatedProduct, originalCode) => {
     const previousProducts = get().products;
 
     // 1. Optimistic local update
@@ -102,12 +102,19 @@ export const useProductStore = create((set, get) => ({
 
     // 2. Sync to Supabase
     try {
-      await supabaseService.updateProduct(id, updatedProduct);
+      await supabaseService.updateProduct(id, updatedProduct, originalCode);
     } catch (e) {
       console.error('Update Product Error, rolling back:', e);
       set({ products: previousProducts });
       localStorage.setItem('orion_products', JSON.stringify(previousProducts));
       throw e;
+    }
+
+    // 3. Re-fetch para confirmar que el cambio se guardó en Supabase
+    const refreshed = await supabaseService.getAllProducts();
+    if (refreshed) {
+      set({ products: refreshed });
+      localStorage.setItem('orion_products', JSON.stringify(refreshed));
     }
   },
 
