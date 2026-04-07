@@ -127,6 +127,8 @@ export const supabaseService = {
       list_price:    productData.listPrice || 0,
     };
 
+    console.log('[Supabase] updateProduct → id:', id, '| code:', productData.code);
+
     // 1. Intentar por UUID
     const { data, error } = await supabase
       .from('products')
@@ -134,16 +136,21 @@ export const supabaseService = {
       .eq('id', id)
       .select('id');
 
+    console.log('[Supabase] update by id result → data:', data, '| error:', error);
+
     if (error) {
       console.error('Error updating product by id:', error);
       throw error;
     }
 
-    if (data && data.length > 0) return; // Update por UUID exitoso
+    if (data && data.length > 0) {
+      console.log('[Supabase] update by id exitoso ✓');
+      return;
+    }
 
     // 2. UUID no coincidió — fallback por código original
     const codeToSearch = originalCode || productData.code;
-    console.warn(`updateProduct: UUID "${id}" no encontrado en Supabase. Intentando por código "${codeToSearch}"...`);
+    console.warn(`[Supabase] UUID "${id}" no encontrado. Intentando por código "${codeToSearch}"...`);
 
     const { data: data2, error: error2 } = await supabase
       .from('products')
