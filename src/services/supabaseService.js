@@ -29,17 +29,17 @@ export const supabaseService = {
   },
 
   async bulkAddProducts(products) {
-    const CHUNK = 100;
-    let inserted = 0;
-    let skipped = 0;
+    const CHUNK = 50;
+    const TIMEOUT_MS = 30000;
 
     // Deduplicate by code — keep last occurrence to avoid upsert 500 errors
     const seen = new Map();
     for (const p of products) seen.set(p.code, p);
     const deduped = [...seen.values()];
 
+    const chunks = [];
     for (let i = 0; i < deduped.length; i += CHUNK) {
-      const chunk = deduped.slice(i, i + CHUNK).map(p => ({
+      chunks.push(deduped.slice(i, i + CHUNK).map(p => ({
         code:          p.code,
         name:          p.name,
         category:      p.category,
@@ -50,17 +50,38 @@ export const supabaseService = {
         min_stock:     p.minStock,
         unit:          p.unit,
         marca:         p.marca || '',
-      }));
+      })));
+    }
 
-      const { error } = await supabase
-        .from('products')
-        .upsert(chunk, { onConflict: 'code' });
+    const upsertChunk = (chunk) => {
+      return Promise.race([
+        supabase.from('products').upsert(chunk, { onConflict: 'code' }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado')), TIMEOUT_MS)
+        ),
+      ]);
+    };
 
-      if (error) {
-        console.error('Bulk upsert error:', error);
-        skipped += chunk.length;
-      } else {
-        inserted += chunk.length;
+    // Process in parallel batches of 3 concurrent requests
+    const CONCURRENCY = 3;
+    let inserted = 0;
+    let skipped = 0;
+
+    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+      const batch = chunks.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(batch.map(upsertChunk));
+
+      for (let j = 0; j < results.length; j++) {
+        const res = results[j];
+        if (res.status === 'rejected') {
+          console.error('Bulk upsert error (timeout or network):', res.reason);
+          skipped += batch[j].length;
+        } else if (res.value?.error) {
+          console.error('Bulk upsert error:', res.value.error);
+          skipped += batch[j].length;
+        } else {
+          inserted += batch[j].length;
+        }
       }
     }
 
