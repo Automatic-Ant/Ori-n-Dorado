@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { supabaseService } from '../services/supabaseService';
 
+// Defer localStorage writes off the main thread so they don't block renders
+let _lsTimer = null;
+function scheduleSave(products) {
+  if (_lsTimer) clearTimeout(_lsTimer);
+  _lsTimer = setTimeout(() => {
+    try { localStorage.setItem('orion_products', JSON.stringify(products)); } catch (_) {}
+  }, 300);
+}
+
 export const useProductStore = create((set, get) => ({
   products: [],
   isLoadingProducts: true,
@@ -38,7 +47,8 @@ export const useProductStore = create((set, get) => ({
           localStorage.setItem('orion_products', JSON.stringify(liveProducts));
         }
         // Sincronizar a Supabase los productos que faltan
-        const missingInSupabase = localProducts.filter(p => !liveProducts.find(lp => lp.code === p.code));
+        const liveCodeSet = new Set(liveProducts.map(lp => lp.code));
+        const missingInSupabase = localProducts.filter(p => !liveCodeSet.has(p.code));
         for (const p of missingInSupabase) {
           try { await supabaseService.addProduct(p); } catch (e) { /* ignora duplicados */ }
         }
@@ -93,19 +103,20 @@ export const useProductStore = create((set, get) => ({
     const previousProducts = get().products;
 
     // 1. Optimistic local update
+    let nextProducts;
     set((state) => {
-      const updatedProducts = state.products.map(p => p.id === id ? { ...p, ...updatedProduct } : p);
-      localStorage.setItem('orion_products', JSON.stringify(updatedProducts));
-      return { products: updatedProducts };
+      nextProducts = state.products.map(p => p.id === id ? { ...p, ...updatedProduct } : p);
+      return { products: nextProducts };
     });
+    scheduleSave(nextProducts);
 
-    // 2. Sync to Supabase (optimistic update ya quedó en local y localStorage)
+    // 2. Sync to Supabase
     try {
       await supabaseService.updateProduct(id, updatedProduct, originalCode);
     } catch (e) {
       console.error('Update Product Error, rolling back:', e);
       set({ products: previousProducts });
-      localStorage.setItem('orion_products', JSON.stringify(previousProducts));
+      scheduleSave(previousProducts);
       throw e;
     }
   },
@@ -114,11 +125,12 @@ export const useProductStore = create((set, get) => ({
     const previousProducts = get().products;
 
     // 1. Optimistic Update
+    let nextProducts;
     set((state) => {
-      const updatedProducts = state.products.filter(p => p.id !== id);
-      localStorage.setItem('orion_products', JSON.stringify(updatedProducts));
-      return { products: updatedProducts };
+      nextProducts = state.products.filter(p => p.id !== id);
+      return { products: nextProducts };
     });
+    scheduleSave(nextProducts);
 
     // 2. Sync to Supabase
     try {
@@ -126,38 +138,34 @@ export const useProductStore = create((set, get) => ({
     } catch (e) {
       console.error('Delete Product Error, rolling back:', e);
       set({ products: previousProducts });
-      localStorage.setItem('orion_products', JSON.stringify(previousProducts));
+      scheduleSave(previousProducts);
     }
   },
 
   decreaseStock: (itemsToDecrease) => {
+    let nextProducts;
     set((state) => {
-      const newProductsState = state.products.map(p => {
+      nextProducts = state.products.map(p => {
         const soldItem = itemsToDecrease.find(item => item.id === p.id);
-        if (soldItem) {
-          const newStock = Math.max(0, p.stock - soldItem.quantity);
-          return { ...p, stock: newStock };
-        }
+        if (soldItem) return { ...p, stock: Math.max(0, p.stock - soldItem.quantity) };
         return p;
       });
-      localStorage.setItem('orion_products', JSON.stringify(newProductsState));
-      return { products: newProductsState };
+      return { products: nextProducts };
     });
+    scheduleSave(nextProducts);
   },
 
   increaseStock: (itemsToIncrease) => {
+    let nextProducts;
     set((state) => {
-      const newProductsState = state.products.map(p => {
+      nextProducts = state.products.map(p => {
         const returnedItem = itemsToIncrease.find(item => item.id === p.id);
-        if (returnedItem) {
-          const newStock = p.stock + returnedItem.quantity;
-          return { ...p, stock: newStock };
-        }
+        if (returnedItem) return { ...p, stock: p.stock + returnedItem.quantity };
         return p;
       });
-      localStorage.setItem('orion_products', JSON.stringify(newProductsState));
-      return { products: newProductsState };
+      return { products: nextProducts };
     });
+    scheduleSave(nextProducts);
   }
 }));
 

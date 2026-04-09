@@ -32,6 +32,7 @@ const Stock = () => {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'admin';
   
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [filterMarca, setFilterMarca] = useState('');
@@ -53,6 +54,11 @@ const Stock = () => {
   useEffect(() => {
     localStorage.setItem('orion_global_base_code', globalBaseCode);
   }, [globalBaseCode]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -123,7 +129,7 @@ const Stock = () => {
     [filteredProducts, safePage]
   );
 
-  const handleSearchChange = useCallback((e) => { setSearchTerm(e.target.value); setCurrentPage(1); }, []);
+  const handleSearchChange = useCallback((e) => { setSearchInput(e.target.value); }, []);
   const handleMarcaChange = useCallback((e) => { setFilterMarca(e.target.value); setCurrentPage(1); }, []);
   const handleCategoryChange = useCallback((e) => { setFilterCategory(e.target.value); setCurrentPage(1); }, []);
   const handleStockFilterChange = useCallback((e) => { setFilterStock(e.target.value); setOnlyLowStock(false); setCurrentPage(1); }, []);
@@ -274,11 +280,11 @@ const Stock = () => {
           <input
             type="text"
             placeholder="Buscar por nombre, código, categoría o marca..."
-            value={searchTerm}
+            value={searchInput}
             onChange={handleSearchChange}
           />
-          {searchTerm && (
-            <button className="clear-btn" onClick={() => { setSearchTerm(''); setCurrentPage(1); }} type="button">
+          {searchInput && (
+            <button className="clear-btn" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }} type="button">
               <X size={16} />
             </button>
           )}
