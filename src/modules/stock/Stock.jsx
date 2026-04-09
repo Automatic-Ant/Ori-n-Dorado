@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   Upload
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { useProductStore } from '../../store/productStore';
 import { useAuthStore } from '../../store/authStore';
@@ -38,6 +37,8 @@ const Stock = () => {
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 75;
   
   const [globalBaseCode, setGlobalBaseCode] = useState(() => {
     return localStorage.getItem('orion_global_base_code') || '';
@@ -74,11 +75,14 @@ const Stock = () => {
   });
 
   const stockStats = useMemo(() => {
-    const totalProducts = products.length;
-    const totalUnits = products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
-    const lowStock = products.filter(p => Number(p.stock) <= Number(p.minStock) && Number(p.stock) > 0).length;
-    const noStock = products.filter(p => Number(p.stock) === 0).length;
-    return { totalProducts, totalUnits, lowStock, noStock };
+    let totalUnits = 0, lowStock = 0, noStock = 0;
+    for (const p of products) {
+      const s = Number(p.stock) || 0;
+      totalUnits += s;
+      if (s === 0) noStock++;
+      else if (s <= (Number(p.minStock) || 0)) lowStock++;
+    }
+    return { totalProducts: products.length, totalUnits, lowStock, noStock };
   }, [products]);
 
   const marcaOptions = useMemo(() => {
@@ -87,32 +91,43 @@ const Stock = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    const marcaLower = filterMarca.toLowerCase();
     return products.filter(p => {
-      const pName = p.name ? p.name.toString().toLowerCase() : '';
-      const pCode = p.code ? p.code.toString().toLowerCase() : '';
-      const cat = p.category ? p.category.toString().toLowerCase() : '';
-      const pMarca = p.marca ? p.marca.toString().toLowerCase() : '';
-
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = !term || pName.includes(term) || pCode.includes(term) || cat.includes(term) || pMarca.includes(term);
-
-      const matchesMarca = !filterMarca || (p.marca || '').toLowerCase() === filterMarca.toLowerCase();
-      const matchesCategory = !filterCategory || p.category === filterCategory;
+      if (term) {
+        const pName = p.name ? p.name.toString().toLowerCase() : '';
+        const pCode = p.code ? p.code.toString().toLowerCase() : '';
+        const cat = p.category ? p.category.toString().toLowerCase() : '';
+        const pMarca = p.marca ? p.marca.toString().toLowerCase() : '';
+        if (!pName.includes(term) && !pCode.includes(term) && !cat.includes(term) && !pMarca.includes(term)) return false;
+      }
+      if (marcaLower && (p.marca || '').toLowerCase() !== marcaLower) return false;
+      if (filterCategory && p.category !== filterCategory) return false;
 
       const stockVal = Number(p.stock) || 0;
       const minStockVal = Number(p.minStock) || 0;
-      const matchesStockFilter =
-        filterStock === 'todos' ? true :
-        filterStock === 'ok'    ? stockVal > minStockVal :
-        filterStock === 'bajo'  ? (stockVal <= minStockVal && stockVal > 0) :
-        filterStock === 'sin'   ? stockVal === 0 : true;
+      if (filterStock === 'ok'   && !(stockVal > minStockVal)) return false;
+      if (filterStock === 'bajo' && !(stockVal <= minStockVal && stockVal > 0)) return false;
+      if (filterStock === 'sin'  && stockVal !== 0) return false;
+      if (onlyLowStock && stockVal > minStockVal) return false;
 
-      // keep legacy onlyLowStock for sidebar redirect compatibility
-      const matchesLowStock = !onlyLowStock || stockVal <= minStockVal;
-
-      return matchesSearch && matchesMarca && matchesCategory && matchesStockFilter && matchesLowStock;
+      return true;
     });
   }, [products, searchTerm, onlyLowStock, filterMarca, filterCategory, filterStock]);
+
+  // Reset to page 1 whenever filters change
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedProducts = useMemo(
+    () => filteredProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredProducts, safePage]
+  );
+
+  const handleSearchChange = useCallback((e) => { setSearchTerm(e.target.value); setCurrentPage(1); }, []);
+  const handleMarcaChange = useCallback((e) => { setFilterMarca(e.target.value); setCurrentPage(1); }, []);
+  const handleCategoryChange = useCallback((e) => { setFilterCategory(e.target.value); setCurrentPage(1); }, []);
+  const handleStockFilterChange = useCallback((e) => { setFilterStock(e.target.value); setOnlyLowStock(false); setCurrentPage(1); }, []);
+  const handleClearFilters = useCallback(() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); setCurrentPage(1); }, []);
 
   const handleOpenModal = (product = null) => {
     if (product) {
@@ -260,10 +275,10 @@ const Stock = () => {
             type="text"
             placeholder="Buscar por nombre, código, categoría o marca..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
           />
           {searchTerm && (
-            <button className="clear-btn" onClick={() => setSearchTerm('')} type="button">
+            <button className="clear-btn" onClick={() => { setSearchTerm(''); setCurrentPage(1); }} type="button">
               <X size={16} />
             </button>
           )}
@@ -272,7 +287,7 @@ const Stock = () => {
         <div className="filters-row">
           <div className="filter-select-wrap card glass">
             <Filter size={15} className="filter-icon" />
-            <select value={filterMarca} onChange={(e) => setFilterMarca(e.target.value)}>
+            <select value={filterMarca} onChange={handleMarcaChange}>
               <option value="">Todas las marcas</option>
               {marcaOptions.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -280,7 +295,7 @@ const Stock = () => {
 
           <div className="filter-select-wrap card glass">
             <Filter size={15} className="filter-icon" />
-            <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+            <select value={filterCategory} onChange={handleCategoryChange}>
               <option value="">Todas las categorías</option>
               <option value="Cables">Cables</option>
               <option value="Iluminación">Iluminación</option>
@@ -292,7 +307,7 @@ const Stock = () => {
 
           <div className="filter-select-wrap card glass">
             <AlertCircle size={15} className="filter-icon" />
-            <select value={filterStock} onChange={(e) => { setFilterStock(e.target.value); setOnlyLowStock(false); }}>
+            <select value={filterStock} onChange={handleStockFilterChange}>
               <option value="todos">Todo el stock</option>
               <option value="ok">Stock OK</option>
               <option value="bajo">Stock bajo</option>
@@ -314,7 +329,7 @@ const Stock = () => {
           {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock) && (
             <button
               className="clear-filters-btn card glass"
-              onClick={() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); }}
+              onClick={handleClearFilters}
               type="button"
             >
               <X size={15} /> Limpiar filtros
@@ -339,16 +354,8 @@ const Stock = () => {
             </tr>
           </thead>
           <tbody>
-            <AnimatePresence mode="popLayout">
-              {filteredProducts.map((product) => (
-                <motion.tr 
-                   key={product.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  layout
-                >
+              {pagedProducts.map((product) => (
+                <tr key={product.id}>
                   <td><span className="code-badge">{product.code}</span></td>
                   <td>
                     <div className="prod-name-cell">
@@ -390,15 +397,47 @@ const Stock = () => {
                       </div>
                     )}
                   </td>
-                </motion.tr>
+                </tr>
               ))}
-            </AnimatePresence>
           </tbody>
         </table>
         {filteredProducts.length === 0 && (
           <div className="empty-table-msg">
             <Package size={48} />
             <p>No se encontraron productos con los filtros actuales.</p>
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="pagination-row">
+            <span className="pagination-info">
+              {filteredProducts.length} productos — página {safePage} de {totalPages}
+            </span>
+            <div className="pagination-btns">
+              <button
+                className="page-btn"
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage === 1}
+                type="button"
+              >«</button>
+              <button
+                className="page-btn"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                type="button"
+              >‹</button>
+              <button
+                className="page-btn"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                type="button"
+              >›</button>
+              <button
+                className="page-btn"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safePage === totalPages}
+                type="button"
+              >»</button>
+            </div>
           </div>
         )}
       </div>
@@ -923,6 +962,52 @@ const Stock = () => {
           .stock-page {
             gap: 1.25rem;
           }
+        }
+
+        .pagination-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.75rem 1.5rem;
+          border-top: 1px solid var(--border-color);
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .pagination-info {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .pagination-btns {
+          display: flex;
+          gap: 0.4rem;
+        }
+
+        .page-btn {
+          background: rgba(255,255,255,0.05);
+          border: 1px solid var(--border-color);
+          color: white;
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+          font-size: 1rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+          border-color: var(--primary-gold);
+          color: var(--primary-gold);
+          background: rgba(212, 175, 55, 0.1);
+        }
+
+        .page-btn:disabled {
+          opacity: 0.3;
+          cursor: default;
         }
 
         @media (max-width: 768px) {
