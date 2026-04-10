@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, memo } from 'react';
 import {
   Plus,
   Search,
   Edit2,
   TrendingUp,
-  ChevronDown,
-  MoreVertical,
   AlertCircle,
   Save,
   Trash2,
@@ -22,6 +20,47 @@ import Modal from '../../components/Modal';
 import { formatCurrency } from '../../utils/formatCurrency';
 import ImportExcelModal from './ImportExcelModal';
 
+const ProductRow = memo(({ product, isAdmin, onEdit, onDelete }) => {
+  const isLowStock = Number(product.stock) <= Number(product.minStock);
+  return (
+    <tr>
+      <td><span className="code-badge">{product.code}</span></td>
+      <td>
+        <div className="prod-name-cell">
+          {product.name}
+          {isLowStock && (
+            <span className="low-stock-alert">
+              <AlertCircle size={12} /> Stock Bajo
+            </span>
+          )}
+        </div>
+      </td>
+      <td>{product.marca || '-'}</td>
+      <td>{product.category}</td>
+      <td className="list-price-cell">{product.listPrice ? formatCurrency(product.listPrice) : '-'}</td>
+      <td className="price-cell">{formatCurrency(product.price)}</td>
+      <td>
+        <span className={`stock-count ${isLowStock ? 'critical' : ''}`}>
+          {product.stock}
+        </span>
+      </td>
+      <td>{product.unit}</td>
+      <td>
+        {isAdmin && (
+          <div className="action-btns">
+            <button className="icon-btn edit" onClick={() => onEdit(product)} type="button">
+              <Edit2 size={16} />
+            </button>
+            <button className="icon-btn delete" onClick={() => onDelete(product)} type="button">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+});
+
 const Stock = () => {
   const location = useLocation();
   const products = useProductStore((state) => state.products);
@@ -33,13 +72,14 @@ const Stock = () => {
   const isAdmin = user?.role === 'admin';
   
   const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchInput);
+  const isSearchStale = searchInput !== deferredSearch;
   const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 75;
+  const PAGE_SIZE = 15;
   
   const [globalBaseCode, setGlobalBaseCode] = useState(() => {
     return localStorage.getItem('orion_global_base_code') || '';
@@ -55,10 +95,8 @@ const Stock = () => {
     localStorage.setItem('orion_global_base_code', globalBaseCode);
   }, [globalBaseCode]);
 
-  useEffect(() => {
-    const t = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 250);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+  // Reset page when any filter (including deferred search) settles
+  useEffect(() => { setCurrentPage(1); }, [deferredSearch, filterMarca, filterCategory, filterStock, onlyLowStock]);
 
   // Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -97,7 +135,7 @@ const Stock = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const term = searchTerm.toLowerCase();
+    const term = deferredSearch.toLowerCase();
     const marcaLower = filterMarca.toLowerCase();
     return products.filter(p => {
       if (term) {
@@ -119,7 +157,7 @@ const Stock = () => {
 
       return true;
     });
-  }, [products, searchTerm, onlyLowStock, filterMarca, filterCategory, filterStock]);
+  }, [products, deferredSearch, onlyLowStock, filterMarca, filterCategory, filterStock]);
 
   // Reset to page 1 whenever filters change
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
@@ -130,6 +168,29 @@ const Stock = () => {
   );
 
   const handleSearchChange = useCallback((e) => { setSearchInput(e.target.value); }, []);
+
+  // Stable callbacks for memoized ProductRow — must not change on every render
+  const handleEditProduct = useCallback((product) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name || '',
+      code: product.code || '',
+      category: product.category || 'Cables',
+      codigoPrecio: product.codigoPrecio || '',
+      baseCode: product.baseCode || '',
+      stock: product.stock || 0,
+      minStock: product.minStock || 0,
+      unit: product.unit || 'unidad',
+      marca: product.marca || '',
+      listPrice: product.listPrice || ''
+    });
+    setIsModalOpen(true);
+  }, []);
+
+  const handleDeleteProduct = useCallback((product) => {
+    setProductToDelete(product);
+    setIsDeleteModalOpen(true);
+  }, []);
   const handleMarcaChange = useCallback((e) => { setFilterMarca(e.target.value); setCurrentPage(1); }, []);
   const handleCategoryChange = useCallback((e) => { setFilterCategory(e.target.value); setCurrentPage(1); }, []);
   const handleStockFilterChange = useCallback((e) => { setFilterStock(e.target.value); setOnlyLowStock(false); setCurrentPage(1); }, []);
@@ -199,11 +260,6 @@ const Stock = () => {
     } catch (err) {
       alert('Error al guardar en Supabase. Revisá la consola para más detalles.');
     }
-  };
-
-  const confirmDelete = (product) => {
-    setProductToDelete(product);
-    setIsDeleteModalOpen(true);
   };
 
   const handleExecuteDelete = () => {
@@ -344,7 +400,7 @@ const Stock = () => {
         </div>
       </div>
 
-      <div className="table-container card glass">
+      <div className={`table-container card glass${isSearchStale ? ' table-stale' : ''}`}>
         <table className="stock-table">
           <thead>
             <tr>
@@ -360,51 +416,15 @@ const Stock = () => {
             </tr>
           </thead>
           <tbody>
-              {pagedProducts.map((product) => (
-                <tr key={product.id}>
-                  <td><span className="code-badge">{product.code}</span></td>
-                  <td>
-                    <div className="prod-name-cell">
-                      {product.name}
-                      {Number(product.stock) <= Number(product.minStock) && (
-                        <span className="low-stock-alert">
-                          <AlertCircle size={12} /> Stock Bajo
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td>{product.marca || '-'}</td>
-                  <td>{product.category}</td>
-                  <td className="list-price-cell">{product.listPrice ? formatCurrency(product.listPrice) : '-'}</td>
-                  <td className="price-cell">{formatCurrency(product.price)}</td>
-                  <td>
-                    <span className={`stock-count ${Number(product.stock) <= Number(product.minStock) ? 'critical' : ''}`}>
-                      {product.stock}
-                    </span>
-                  </td>
-                  <td>{product.unit}</td>
-                  <td>
-                    {isAdmin && (
-                      <div className="action-btns">
-                        <button
-                          className="icon-btn edit"
-                          onClick={() => handleOpenModal(product)}
-                          type="button"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          className="icon-btn delete"
-                          onClick={() => confirmDelete(product)}
-                          type="button"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+            {pagedProducts.map((product) => (
+              <ProductRow
+                key={product.id}
+                product={product}
+                isAdmin={isAdmin}
+                onEdit={handleEditProduct}
+                onDelete={handleDeleteProduct}
+              />
+            ))}
           </tbody>
         </table>
         {filteredProducts.length === 0 && (
@@ -761,6 +781,11 @@ const Stock = () => {
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          transition: opacity 0.15s;
+        }
+
+        .table-stale {
+          opacity: 0.6;
         }
 
         .stock-table {
