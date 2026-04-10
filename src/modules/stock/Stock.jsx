@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, mem
 // Normaliza texto: minúsculas + sin acentos, para comparaciones flexibles
 const normalize = (str) =>
   String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// Versión compacta: además elimina todos los espacios (para "2x2" == "2 x 2")
+const compact = (str) => normalize(str).replace(/\s/g, '');
 import {
   Plus,
   Search,
@@ -147,15 +150,17 @@ const Stock = () => {
 
   const filteredProducts = useMemo(() => {
     const term = normalize(deferredSearch);
+    const termC = compact(deferredSearch);
     const marcaNorm = normalize(filterMarca);
     const catNorm = normalize(filterCategory);
     return products.filter(p => {
       if (term) {
-        const pName = normalize(p.name);
-        const pCode = normalize(p.code);
-        const cat = normalize(p.category);
-        const pMarca = normalize(p.marca);
-        if (!pName.includes(term) && !pCode.includes(term) && !cat.includes(term) && !pMarca.includes(term)) return false;
+        const matches = (field) => {
+          const n = normalize(field);
+          const c = compact(field);
+          return n.includes(term) || c.includes(termC);
+        };
+        if (!matches(p.name) && !matches(p.code) && !matches(p.category) && !matches(p.marca)) return false;
       }
       if (marcaNorm && normalize(p.marca) !== marcaNorm) return false;
       if (catNorm && normalize(p.category) !== catNorm) return false;
