@@ -6,7 +6,8 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .order('name');
+      .order('name')
+      .limit(10000);
     
     if (error) {
       console.error('Error fetching products from Supabase:', error);
@@ -51,6 +52,7 @@ export const supabaseService = {
         min_stock:     p.minStock,
         unit:          p.unit,
         marca:         p.marca || '',
+        list_price:    p.listPrice || 0,
       })));
     }
 
@@ -88,6 +90,7 @@ export const supabaseService = {
       }
 
       processedChunks += batch.length;
+      console.log(`[Import] Chunks procesados: ${processedChunks}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
       // Reserve last 10% for the re-fetch step
       onProgress?.(Math.round((processedChunks / totalChunks) * 90));
     }
