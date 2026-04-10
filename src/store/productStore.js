@@ -65,11 +65,27 @@ export const useProductStore = create((set, get) => ({
   bulkAddProducts: async (productList, onProgress) => {
     const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
-    // Re-fetch once after all inserts
-    const updatedList = await supabaseService.getAllProducts();
-    if (updatedList) {
-      set({ products: updatedList });
-      localStorage.setItem('orion_products', JSON.stringify(updatedList));
+    // Try to re-fetch with a timeout; if it hangs, merge optimistically
+    try {
+      const updatedList = await Promise.race([
+        supabaseService.getAllProducts(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('refetch timeout')), 8000)),
+      ]);
+      if (updatedList) {
+        set({ products: updatedList });
+        localStorage.setItem('orion_products', JSON.stringify(updatedList));
+      }
+    } catch (_) {
+      // Re-fetch timed out — merge imported products into current state optimistically
+      set((state) => {
+        const byCode = new Map(state.products.map(p => [p.code, p]));
+        for (const p of productList) {
+          byCode.set(p.code, { ...byCode.get(p.code), ...p, id: byCode.get(p.code)?.id || `temp-${p.code}` });
+        }
+        const next = [...byCode.values()];
+        scheduleSave(next);
+        return { products: next };
+      });
     }
 
     onProgress?.(100);
