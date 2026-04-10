@@ -260,9 +260,18 @@ const ImportExcelModal = ({ onClose, onImport }) => {
                   <Check size={48} />
                 </div>
                 <h3>¡Importación completada!</h3>
-                <p className="result-detail">
-                  Se importaron <strong>{importResult.total}</strong> productos al stock.
-                </p>
+                <div className="result-stats">
+                  <div className="result-stat">
+                    <span className="result-stat-value">{importResult.total}</span>
+                    <span className="result-stat-label">productos importados</span>
+                  </div>
+                  {importResult.totalInStore && (
+                    <div className="result-stat total">
+                      <span className="result-stat-value">{importResult.totalInStore}</span>
+                      <span className="result-stat-label">total en inventario</span>
+                    </div>
+                  )}
+                </div>
                 {importResult.skipped > 0 && (
                   <div className="result-warning">
                     <AlertTriangle size={16} />
@@ -547,6 +556,38 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         .result-step h3 { font-size: 1.3rem; margin: 0; }
         .result-detail  { color: var(--text-secondary); margin: 0; }
         .result-detail strong { color: white; }
+
+        .result-stats {
+          display: flex;
+          gap: 2rem;
+          justify-content: center;
+          margin: 0.5rem 0;
+        }
+
+        .result-stat {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.2rem;
+        }
+
+        .result-stat-value {
+          font-size: 2rem;
+          font-weight: 800;
+          color: #2ecc71;
+          line-height: 1;
+        }
+
+        .result-stat.total .result-stat-value {
+          color: var(--primary-gold);
+        }
+
+        .result-stat-label {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
 
         .result-error-detail {
           background: rgba(231, 76, 60, 0.08);
