@@ -65,28 +65,26 @@ export const useProductStore = create((set, get) => ({
   bulkAddProducts: async (productList, onProgress) => {
     const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
-    // Try to re-fetch with a timeout; if it hangs, merge optimistically
+    // Fetch only the imported products by code (fast targeted query, not full table scan)
+    const importedCodes = productList.map(p => p.code);
+    let savedProducts = null;
     try {
-      const updatedList = await Promise.race([
-        supabaseService.getAllProducts(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('refetch timeout')), 8000)),
+      savedProducts = await Promise.race([
+        supabaseService.getProductsByCodes(importedCodes),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
-      if (updatedList) {
-        set({ products: updatedList });
-        localStorage.setItem('orion_products', JSON.stringify(updatedList));
-      }
-    } catch (_) {
-      // Re-fetch timed out — merge imported products into current state optimistically
-      set((state) => {
-        const byCode = new Map(state.products.map(p => [p.code, p]));
-        for (const p of productList) {
-          byCode.set(p.code, { ...byCode.get(p.code), ...p, id: byCode.get(p.code)?.id || `temp-${p.code}` });
-        }
-        const next = [...byCode.values()];
-        scheduleSave(next);
-        return { products: next };
-      });
-    }
+    } catch (_) {}
+
+    // Merge into current state — use DB records (with real UUIDs) when available,
+    // fall back to optimistic merge with temp IDs
+    set((state) => {
+      const byCode = new Map(state.products.map(p => [p.code, p]));
+      const source = savedProducts ?? productList.map(p => ({ ...p, id: byCode.get(p.code)?.id || `temp-${p.code}` }));
+      for (const p of source) byCode.set(p.code, p);
+      const next = [...byCode.values()];
+      scheduleSave(next);
+      return { products: next };
+    });
 
     onProgress?.(100);
     return result;

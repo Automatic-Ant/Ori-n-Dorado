@@ -30,6 +30,33 @@ export const supabaseService = {
     }));
   },
 
+  async getProductsByCodes(codes) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .in('code', codes);
+
+    if (error) {
+      console.error('Error fetching products by codes:', error);
+      return null;
+    }
+
+    return data.map(item => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category,
+      stock: Number(item.stock),
+      codigoPrecio: Number(item.codigo_precio),
+      price: Number(item.price),
+      baseCode: Number(item.base_code),
+      minStock: Number(item.min_stock),
+      unit: item.unit,
+      marca: item.marca || '',
+      listPrice: Number(item.list_price) || 0,
+    }));
+  },
+
   async bulkAddProducts(products, onProgress) {
     const CHUNK = 50;
     const TIMEOUT_MS = 30000;
