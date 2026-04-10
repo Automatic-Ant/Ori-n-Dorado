@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, memo } from 'react';
+
+// Normaliza texto: minúsculas + sin acentos, para comparaciones flexibles
+const normalize = (str) =>
+  String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 import {
   Plus,
   Search,
@@ -135,18 +139,19 @@ const Stock = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const term = deferredSearch.toLowerCase();
-    const marcaLower = filterMarca.toLowerCase();
+    const term = normalize(deferredSearch);
+    const marcaNorm = normalize(filterMarca);
+    const catNorm = normalize(filterCategory);
     return products.filter(p => {
       if (term) {
-        const pName = p.name ? p.name.toString().toLowerCase() : '';
-        const pCode = p.code ? p.code.toString().toLowerCase() : '';
-        const cat = p.category ? p.category.toString().toLowerCase() : '';
-        const pMarca = p.marca ? p.marca.toString().toLowerCase() : '';
+        const pName = normalize(p.name);
+        const pCode = normalize(p.code);
+        const cat = normalize(p.category);
+        const pMarca = normalize(p.marca);
         if (!pName.includes(term) && !pCode.includes(term) && !cat.includes(term) && !pMarca.includes(term)) return false;
       }
-      if (marcaLower && (p.marca || '').toLowerCase() !== marcaLower) return false;
-      if (filterCategory && p.category !== filterCategory) return false;
+      if (marcaNorm && normalize(p.marca) !== marcaNorm) return false;
+      if (catNorm && normalize(p.category) !== catNorm) return false;
 
       const stockVal = Number(p.stock) || 0;
       const minStockVal = Number(p.minStock) || 0;
