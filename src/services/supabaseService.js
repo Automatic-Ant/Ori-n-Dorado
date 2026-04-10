@@ -29,7 +29,7 @@ export const supabaseService = {
     }));
   },
 
-  async bulkAddProducts(products) {
+  async bulkAddProducts(products, onProgress) {
     const CHUNK = 50;
     const TIMEOUT_MS = 30000;
 
@@ -65,6 +65,8 @@ export const supabaseService = {
 
     // Process in parallel batches of 3 concurrent requests
     const CONCURRENCY = 3;
+    const totalChunks = chunks.length;
+    let processedChunks = 0;
     let inserted = 0;
     let skipped = 0;
 
@@ -84,6 +86,10 @@ export const supabaseService = {
           inserted += batch[j].length;
         }
       }
+
+      processedChunks += batch.length;
+      // Reserve last 10% for the re-fetch step
+      onProgress?.(Math.round((processedChunks / totalChunks) * 90));
     }
 
     return { inserted, skipped };

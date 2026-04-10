@@ -64,12 +64,15 @@ const ImportExcelModal = ({ onClose, onImport }) => {
   };
 
   const [importError, setImportError] = useState(null);
+  const [progress, setProgress] = useState(0);
 
   const handleImport = async () => {
     if (mapping.code === undefined || mapping.name === undefined) return;
 
     setImporting(true);
     setImportError(null);
+    setProgress(0);
+
     const products = rows.map(row => {
       const get = (key) => {
         const idx = mapping[key];
@@ -105,7 +108,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
     }
 
     try {
-      const result = await onImport(products);
+      const result = await onImport(products, (pct) => setProgress(pct));
       setImportResult(result);
       setStep('preview');
     } catch (err) {
@@ -212,36 +215,72 @@ const ImportExcelModal = ({ onClose, onImport }) => {
             {((!mapping.code && mapping.code !== 0) || (!mapping.name && mapping.name !== 0)) && (
               <p className="map-error"><AlertTriangle size={14} /> Los campos Código y Nombre son obligatorios.</p>
             )}
-            {importError && (
+            {importError && !importing && (
               <p className="map-error"><AlertTriangle size={14} /> {importError}</p>
             )}
 
-            <div className="map-actions">
-              <button className="btn-secondary" onClick={() => setStep('upload')}>← Volver</button>
-              <button
-                className="btn-primary"
-                onClick={handleImport}
-                disabled={importing || mapping.code === undefined || mapping.name === undefined}
-              >
-                {importing
-                  ? <><span className="spinner" /> Importando {rows.length} productos...</>
-                  : `Importar ${rows.length} productos`}
-              </button>
-            </div>
+            {importing ? (
+              <div className="progress-section">
+                <div className="progress-header">
+                  <span className="progress-label">Subiendo {rows.length} productos...</span>
+                  <span className="progress-pct">{progress}%</span>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${progress}%` }} />
+                </div>
+                <p className="progress-sub">
+                  {progress < 90
+                    ? 'Enviando datos a la base de datos...'
+                    : progress < 100
+                    ? 'Verificando cambios...'
+                    : '¡Listo!'}
+                </p>
+              </div>
+            ) : (
+              <div className="map-actions">
+                <button className="btn-secondary" onClick={() => setStep('upload')}>← Volver</button>
+                <button
+                  className="btn-primary"
+                  onClick={handleImport}
+                  disabled={mapping.code === undefined || mapping.name === undefined}
+                >
+                  Importar {rows.length} productos
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {/* ── STEP 3: Result ── */}
         {step === 'preview' && importResult && (
           <div className="result-step">
-            <div className="result-icon success">
-              <Check size={48} />
-            </div>
-            <h3>¡Importación completada!</h3>
-            <p className="result-detail">
-              Se importaron <strong>{importResult.total}</strong> productos al stock.
-              {importResult.skipped > 0 && ` Se omitieron ${importResult.skipped} filas sin código o nombre.`}
-            </p>
+            {importResult.total > 0 ? (
+              <>
+                <div className="result-icon success">
+                  <Check size={48} />
+                </div>
+                <h3>¡Importación completada!</h3>
+                <p className="result-detail">
+                  Se importaron <strong>{importResult.total}</strong> productos al stock.
+                </p>
+                {importResult.skipped > 0 && (
+                  <div className="result-warning">
+                    <AlertTriangle size={16} />
+                    {importResult.skipped} productos no se pudieron subir (error de red o datos inválidos).
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="result-icon error">
+                  <AlertTriangle size={48} />
+                </div>
+                <h3>No se pudo importar</h3>
+                <p className="result-detail">
+                  Ningún producto fue guardado. Revisá tu conexión e intentá de nuevo.
+                </p>
+              </>
+            )}
             <button className="btn-primary" style={{ marginTop: '1.5rem', width: '100%' }} onClick={onClose}>
               Cerrar
             </button>
@@ -481,9 +520,75 @@ const ImportExcelModal = ({ onClose, onImport }) => {
           padding: 1rem;
         }
 
+        .result-icon.error {
+          color: #e74c3c;
+          background: rgba(231, 76, 60, 0.1);
+          border-radius: 50%;
+          padding: 1rem;
+        }
+
+        .result-warning {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(243, 156, 18, 0.1);
+          border: 1px solid rgba(243, 156, 18, 0.3);
+          color: #f39c12;
+          padding: 0.6rem 1rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+        }
+
         .result-step h3 { font-size: 1.3rem; margin: 0; }
         .result-detail  { color: var(--text-secondary); margin: 0; }
         .result-detail strong { color: white; }
+
+        /* Progress bar */
+        .progress-section {
+          display: flex;
+          flex-direction: column;
+          gap: 0.6rem;
+          padding: 0.25rem 0;
+        }
+
+        .progress-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .progress-label {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: white;
+        }
+
+        .progress-pct {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: var(--primary-gold);
+        }
+
+        .progress-track {
+          width: 100%;
+          height: 10px;
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--primary-gold), #f0c040);
+          border-radius: 999px;
+          transition: width 0.4s ease;
+        }
+
+        .progress-sub {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          margin: 0;
+        }
 
         .btn-secondary {
           background: rgba(255,255,255,0.05);
@@ -500,21 +605,6 @@ const ImportExcelModal = ({ onClose, onImport }) => {
           cursor: not-allowed;
         }
 
-        .spinner {
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          border: 2px solid rgba(0,0,0,0.3);
-          border-top-color: #000;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          margin-right: 6px;
-          vertical-align: middle;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
       `}</style>
     </div>
   );

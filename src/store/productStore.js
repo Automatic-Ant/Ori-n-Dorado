@@ -62,8 +62,8 @@ export const useProductStore = create((set, get) => ({
     set({ isLoadingProducts: false });
   },
 
-  bulkAddProducts: async (productList) => {
-    const result = await supabaseService.bulkAddProducts(productList);
+  bulkAddProducts: async (productList, onProgress) => {
+    const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
     // Re-fetch once after all inserts
     const updatedList = await supabaseService.getAllProducts();
@@ -72,6 +72,7 @@ export const useProductStore = create((set, get) => ({
       localStorage.setItem('orion_products', JSON.stringify(updatedList));
     }
 
+    onProgress?.(100);
     return result;
   },
 
