@@ -61,12 +61,17 @@ export const supabaseService = {
     let skipped = 0;
     let firstError = null;
 
+    const TIMEOUT_MS = 30000;
+
     // Process chunks sequentially to avoid server overload
     for (let i = 0; i < chunks.length; i++) {
       try {
-        const { error } = await supabase
-          .from('products')
-          .upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false });
+        const { error } = await Promise.race([
+          supabase.from('products').upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.')), TIMEOUT_MS)
+          ),
+        ]);
 
         if (error) {
           console.error(`[Import] Error en chunk ${i + 1}:`, error.message, error.details, error.hint);
@@ -76,7 +81,7 @@ export const supabaseService = {
           inserted += chunks[i].length;
         }
       } catch (e) {
-        console.error(`[Import] Excepción en chunk ${i + 1}:`, e);
+        console.error(`[Import] Excepción en chunk ${i + 1}:`, e.message);
         if (!firstError) firstError = e.message;
         skipped += chunks[i].length;
       }
