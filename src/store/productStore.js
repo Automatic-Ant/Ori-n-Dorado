@@ -65,17 +65,17 @@ export const useProductStore = create((set, get) => ({
   bulkAddProducts: async (productList, onProgress) => {
     const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
-    // Merge imported products into current state optimistically.
-    // Keeps existing UUID if the product was already in the store, otherwise uses a temp ID.
-    // Real UUIDs are resolved the next time initProducts() runs (app reload).
+    // Merge imported products into current state, sorted alphabetically.
+    // Keeps existing UUID when available; uses temp ID otherwise (resolved on next reload).
     set((state) => {
       const byCode = new Map(state.products.map(p => [p.code, p]));
       for (const p of productList) {
         const existing = byCode.get(p.code);
         byCode.set(p.code, { ...p, id: existing?.id || `temp-${p.code}` });
       }
-      const next = [...byCode.values()];
-      // Write to localStorage synchronously so a page refresh doesn't lose the data
+      const next = [...byCode.values()].sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '', 'es')
+      );
       try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
       return { products: next };
     });

@@ -61,20 +61,19 @@ export const supabaseService = {
     let skipped = 0;
     let firstError = null;
 
-    // Process chunks sequentially — easier to debug and avoids server overload
+    // Process chunks sequentially to avoid server overload
     for (let i = 0; i < chunks.length; i++) {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('products')
-          .upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false })
-          .select('id');
+          .upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false });
 
         if (error) {
           console.error(`[Import] Error en chunk ${i + 1}:`, error.message, error.details, error.hint);
           if (!firstError) firstError = error.message;
           skipped += chunks[i].length;
         } else {
-          inserted += data?.length ?? chunks[i].length;
+          inserted += chunks[i].length;
         }
       } catch (e) {
         console.error(`[Import] Excepción en chunk ${i + 1}:`, e);

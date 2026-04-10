@@ -555,7 +555,16 @@ const Stock = () => {
 
       {isImportModalOpen && (
         <ImportExcelModal
-          onClose={() => setIsImportModalOpen(false)}
+          onClose={() => {
+            setIsImportModalOpen(false);
+            // Reset view so imported products are visible on page 1
+            setCurrentPage(1);
+            setSearchInput('');
+            setFilterMarca('');
+            setFilterCategory('');
+            setFilterStock('todos');
+            setOnlyLowStock(false);
+          }}
           onImport={handleBulkImport}
         />
       )}
