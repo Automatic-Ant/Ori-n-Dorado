@@ -31,7 +31,7 @@ export const supabaseService = {
   },
 
   async bulkAddProducts(products, onProgress) {
-    const CHUNK = 25; // Smaller chunks = less risk of timeout or payload errors
+    const CHUNK = 15; // Smaller chunks = faster per-request, less timeout risk
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
@@ -61,15 +61,18 @@ export const supabaseService = {
     let skipped = 0;
     let firstError = null;
 
-    const TIMEOUT_MS = 30000;
+    // First chunk gets extra time to wake up a sleeping Supabase free-tier project
+    const TIMEOUT_FIRST_MS = 90000;
+    const TIMEOUT_MS       = 60000;
 
     // Process chunks sequentially to avoid server overload
     for (let i = 0; i < chunks.length; i++) {
       try {
+        const timeout = i === 0 ? TIMEOUT_FIRST_MS : TIMEOUT_MS;
         const { error } = await Promise.race([
           supabase.from('products').upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false }),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.')), TIMEOUT_MS)
+            setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.')), timeout)
           ),
         ]);
 
