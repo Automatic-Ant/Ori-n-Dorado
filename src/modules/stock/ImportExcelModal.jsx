@@ -2,17 +2,25 @@ import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, X, Check, AlertTriangle, FileSpreadsheet, ChevronRight } from 'lucide-react';
 
-const PRODUCT_FIELDS = [
-  { key: 'code',         label: 'Código',        required: true },
-  { key: 'name',         label: 'Nombre',         required: true },
-  { key: 'marca',        label: 'Marca',          required: false },
-  { key: 'category',     label: 'Categoría',      required: false },
-  { key: 'price',        label: 'Precio',         required: false },
-  { key: 'codigoPrecio', label: 'Cód. Precio',    required: false },
-  { key: 'baseCode',     label: 'Cód. Base',      required: false },
-  { key: 'stock',        label: 'Stock inicial',  required: false },
-  { key: 'minStock',     label: 'Stock mínimo',   required: false },
-  { key: 'unit',         label: 'Unidad',         required: false },
+const BASE_FIELDS = [
+  { key: 'code',         label: 'Código',         required: true  },
+  { key: 'name',         label: 'Nombre',          required: true  },
+  { key: 'marca',        label: 'Marca',           required: false },
+  { key: 'category',     label: 'Categoría',       required: false },
+  { key: 'stock',        label: 'Stock inicial',   required: false },
+  { key: 'minStock',     label: 'Stock mínimo',    required: false },
+  { key: 'unit',         label: 'Unidad',          required: false },
+];
+
+const PRICE_FIELDS_CODIGO = [
+  { key: 'codigoPrecio', label: 'Cód. Precio',     required: false },
+  { key: 'baseCode',     label: 'Cód. Base',       required: false },
+  { key: 'listPrice',    label: 'Precio de lista', required: false },
+];
+
+const PRICE_FIELDS_METRO = [
+  { key: 'precioMetro',  label: 'Precio por metro ($/m)', required: false },
+  { key: 'listPrice',    label: 'Precio de lista',         required: false },
 ];
 
 const DEFAULT_CATEGORY = 'Otros';
@@ -24,8 +32,11 @@ const ImportExcelModal = ({ onClose, onImport }) => {
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
   const [mapping, setMapping] = useState({});
+  const [priceMode, setPriceMode] = useState('codigo'); // 'codigo' | 'metro'
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+
+  const allFields = [...BASE_FIELDS, ...(priceMode === 'metro' ? PRICE_FIELDS_METRO : PRICE_FIELDS_CODIGO)];
 
   const handleFile = (e) => {
     const file = e.target.files[0];
@@ -47,7 +58,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
 
       // Auto-map: match header names to field keys/labels
       const autoMap = {};
-      PRODUCT_FIELDS.forEach(field => {
+      [...BASE_FIELDS, ...PRICE_FIELDS_CODIGO, ...PRICE_FIELDS_METRO].forEach(field => {
         const idx = hdrs.findIndex(h => {
           const hl = h.toLowerCase();
           return hl === field.key.toLowerCase() ||
@@ -79,9 +90,19 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         return idx !== undefined && idx !== '' ? String(row[idx] ?? '').trim() : '';
       };
 
-      const codigoPrecio = parseFloat(get('codigoPrecio') || get('price')) || 0;
-      const baseCode     = parseFloat(get('baseCode')) || 0;
-      const price        = codigoPrecio && baseCode ? codigoPrecio * baseCode : parseFloat(get('price')) || 0;
+      let codigoPrecio, baseCode, price;
+
+      if (priceMode === 'metro') {
+        // Precio directo por metro: codigoPrecio = precio/m, baseCode = 1
+        codigoPrecio = parseFloat(get('precioMetro')) || 0;
+        baseCode     = 1;
+        price        = codigoPrecio;
+      } else {
+        // Precio por código: price = codigoPrecio × baseCode
+        codigoPrecio = parseFloat(get('codigoPrecio')) || 0;
+        baseCode     = parseFloat(get('baseCode')) || 0;
+        price        = codigoPrecio && baseCode ? codigoPrecio * baseCode : 0;
+      }
 
       return {
         code:         get('code'),
@@ -91,9 +112,10 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         codigoPrecio,
         baseCode,
         price,
+        listPrice:    parseFloat(get('listPrice')) || 0,
         stock:        parseFloat(get('stock')) || 0,
         minStock:     parseFloat(get('minStock')) || 0,
-        unit:         get('unit') || DEFAULT_UNIT,
+        unit:         priceMode === 'metro' ? 'metro' : (get('unit') || DEFAULT_UNIT),
       };
     }).filter(p => p.code && p.name);
 
@@ -168,8 +190,29 @@ const ImportExcelModal = ({ onClose, onImport }) => {
               Indicá qué columna de tu Excel corresponde a cada campo:
             </p>
 
+            {/* Price mode selector */}
+            <div className="price-mode-selector">
+              <span className="price-mode-label">Tipo de precio:</span>
+              <div className="price-mode-options">
+                <button
+                  type="button"
+                  className={`price-mode-btn ${priceMode === 'codigo' ? 'active' : ''}`}
+                  onClick={() => setPriceMode('codigo')}
+                >
+                  Por código (Cód. Precio × Cód. Base)
+                </button>
+                <button
+                  type="button"
+                  className={`price-mode-btn ${priceMode === 'metro' ? 'active' : ''}`}
+                  onClick={() => setPriceMode('metro')}
+                >
+                  Por metro ($/m directo)
+                </button>
+              </div>
+            </div>
+
             <div className="map-grid">
-              {PRODUCT_FIELDS.map(field => (
+              {allFields.map(field => (
                 <div key={field.key} className="map-row">
                   <span className="map-field-label">
                     {field.label}
@@ -194,7 +237,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
                 <table className="preview-table">
                   <thead>
                     <tr>
-                      {PRODUCT_FIELDS.filter(f => mapping[f.key] !== undefined).map(f => (
+                      {allFields.filter(f => mapping[f.key] !== undefined).map(f => (
                         <th key={f.key}>{f.label}</th>
                       ))}
                     </tr>
@@ -202,7 +245,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
                   <tbody>
                     {preview.map((row, i) => (
                       <tr key={i}>
-                        {PRODUCT_FIELDS.filter(f => mapping[f.key] !== undefined).map(f => (
+                        {allFields.filter(f => mapping[f.key] !== undefined).map(f => (
                           <td key={f.key}>{String(row[mapping[f.key]] ?? '')}</td>
                         ))}
                       </tr>
@@ -427,6 +470,52 @@ const ImportExcelModal = ({ onClose, onImport }) => {
 
         .map-hint { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
         .map-hint strong { color: white; }
+
+        .price-mode-selector {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          background: rgba(212, 175, 55, 0.05);
+          border: 1px solid rgba(212, 175, 55, 0.2);
+          border-radius: 12px;
+          padding: 0.75rem 1rem;
+        }
+
+        .price-mode-label {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          white-space: nowrap;
+        }
+
+        .price-mode-options {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+
+        .price-mode-btn {
+          padding: 0.4rem 1rem;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          background: transparent;
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .price-mode-btn.active {
+          background: var(--primary-gold);
+          border-color: var(--primary-gold);
+          color: #000;
+          font-weight: 700;
+        }
+
+        .price-mode-btn:not(.active):hover {
+          border-color: var(--primary-gold);
+          color: var(--primary-gold);
+        }
 
         .map-grid {
           display: grid;
