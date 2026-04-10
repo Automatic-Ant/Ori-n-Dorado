@@ -31,7 +31,9 @@ export const supabaseService = {
   },
 
   async bulkAddProducts(products, onProgress) {
-    const CHUNK = 15; // Smaller chunks = faster per-request, less timeout risk
+    const CHUNK = 50;       // Products per request
+    const CONCURRENCY = 4;  // Parallel requests at a time
+    const TIMEOUT_MS = 60000;
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
@@ -57,40 +59,42 @@ export const supabaseService = {
     }
 
     const totalChunks = chunks.length;
+    let completed = 0;
     let inserted = 0;
     let skipped = 0;
     let firstError = null;
 
-    // First chunk gets extra time to wake up a sleeping Supabase free-tier project
-    const TIMEOUT_FIRST_MS = 90000;
-    const TIMEOUT_MS       = 60000;
-
-    // Process chunks sequentially to avoid server overload
-    for (let i = 0; i < chunks.length; i++) {
+    const uploadChunk = async (chunk, index) => {
       try {
-        const timeout = i === 0 ? TIMEOUT_FIRST_MS : TIMEOUT_MS;
         const { error } = await Promise.race([
-          supabase.from('products').upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false }),
+          supabase.from('products').upsert(chunk, { onConflict: 'code', ignoreDuplicates: false }),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.')), timeout)
+            setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.')), TIMEOUT_MS)
           ),
         ]);
 
         if (error) {
-          console.error(`[Import] Error en chunk ${i + 1}:`, error.message, error.details, error.hint);
+          console.error(`[Import] Error en chunk ${index + 1}:`, error.message);
           if (!firstError) firstError = error.message;
-          skipped += chunks[i].length;
+          skipped += chunk.length;
         } else {
-          inserted += chunks[i].length;
+          inserted += chunk.length;
         }
       } catch (e) {
-        console.error(`[Import] Excepción en chunk ${i + 1}:`, e.message);
+        console.error(`[Import] Excepción en chunk ${index + 1}:`, e.message);
         if (!firstError) firstError = e.message;
-        skipped += chunks[i].length;
+        skipped += chunk.length;
       }
 
-      console.log(`[Import] Chunk ${i + 1}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
-      onProgress?.(Math.round(((i + 1) / totalChunks) * 90));
+      completed++;
+      console.log(`[Import] Chunk ${index + 1}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
+      onProgress?.(Math.round((completed / totalChunks) * 90));
+    };
+
+    // Process in parallel waves of CONCURRENCY
+    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+      const wave = chunks.slice(i, i + CONCURRENCY);
+      await Promise.all(wave.map((chunk, j) => uploadChunk(chunk, i + j)));
     }
 
     return { inserted, skipped, firstError };
