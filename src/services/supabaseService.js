@@ -30,99 +30,63 @@ export const supabaseService = {
     }));
   },
 
-  async getProductsByCodes(codes) {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .in('code', codes);
-
-    if (error) {
-      console.error('Error fetching products by codes:', error);
-      return null;
-    }
-
-    return data.map(item => ({
-      id: item.id,
-      code: item.code,
-      name: item.name,
-      category: item.category,
-      stock: Number(item.stock),
-      codigoPrecio: Number(item.codigo_precio),
-      price: Number(item.price),
-      baseCode: Number(item.base_code),
-      minStock: Number(item.min_stock),
-      unit: item.unit,
-      marca: item.marca || '',
-      listPrice: Number(item.list_price) || 0,
-    }));
-  },
-
   async bulkAddProducts(products, onProgress) {
-    const CHUNK = 50;
-    const TIMEOUT_MS = 30000;
+    const CHUNK = 25; // Smaller chunks = less risk of timeout or payload errors
 
-    // Deduplicate by code — keep last occurrence to avoid upsert 500 errors
+    // Deduplicate by code — keep last occurrence
     const seen = new Map();
     for (const p of products) seen.set(p.code, p);
     const deduped = [...seen.values()];
 
+    // Build DB-shaped chunks
     const chunks = [];
     for (let i = 0; i < deduped.length; i += CHUNK) {
       chunks.push(deduped.slice(i, i + CHUNK).map(p => ({
-        code:          p.code,
-        name:          p.name,
-        category:      p.category,
-        stock:         p.stock,
-        codigo_precio: p.codigoPrecio,
-        price:         p.price,
-        base_code:     p.baseCode,
-        min_stock:     p.minStock,
-        unit:          p.unit,
-        marca:         p.marca || '',
-        list_price:    p.listPrice || 0,
+        code:          String(p.code).trim(),
+        name:          String(p.name).trim(),
+        category:      p.category      || 'Otros',
+        stock:         Number(p.stock) || 0,
+        codigo_precio: Number(p.codigoPrecio) || 0,
+        price:         Number(p.price) || 0,
+        base_code:     Number(p.baseCode) || 0,
+        min_stock:     Number(p.minStock) || 0,
+        unit:          p.unit  || 'unidad',
+        marca:         String(p.marca || ''),
+        list_price:    Number(p.listPrice) || 0,
       })));
     }
 
-    const upsertChunk = (chunk) => {
-      return Promise.race([
-        supabase.from('products').upsert(chunk, { onConflict: 'code' }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado')), TIMEOUT_MS)
-        ),
-      ]);
-    };
-
-    // Process in parallel batches of 3 concurrent requests
-    const CONCURRENCY = 3;
     const totalChunks = chunks.length;
-    let processedChunks = 0;
     let inserted = 0;
     let skipped = 0;
+    let firstError = null;
 
-    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
-      const batch = chunks.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(batch.map(upsertChunk));
+    // Process chunks sequentially — easier to debug and avoids server overload
+    for (let i = 0; i < chunks.length; i++) {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .upsert(chunks[i], { onConflict: 'code', ignoreDuplicates: false })
+          .select('id');
 
-      for (let j = 0; j < results.length; j++) {
-        const res = results[j];
-        if (res.status === 'rejected') {
-          console.error('Bulk upsert error (timeout or network):', res.reason);
-          skipped += batch[j].length;
-        } else if (res.value?.error) {
-          console.error('Bulk upsert error:', res.value.error);
-          skipped += batch[j].length;
+        if (error) {
+          console.error(`[Import] Error en chunk ${i + 1}:`, error.message, error.details, error.hint);
+          if (!firstError) firstError = error.message;
+          skipped += chunks[i].length;
         } else {
-          inserted += batch[j].length;
+          inserted += data?.length ?? chunks[i].length;
         }
+      } catch (e) {
+        console.error(`[Import] Excepción en chunk ${i + 1}:`, e);
+        if (!firstError) firstError = e.message;
+        skipped += chunks[i].length;
       }
 
-      processedChunks += batch.length;
-      console.log(`[Import] Chunks procesados: ${processedChunks}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
-      // Reserve last 10% for the re-fetch step
-      onProgress?.(Math.round((processedChunks / totalChunks) * 90));
+      console.log(`[Import] Chunk ${i + 1}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
+      onProgress?.(Math.round(((i + 1) / totalChunks) * 90));
     }
 
-    return { inserted, skipped };
+    return { inserted, skipped, firstError };
   },
 
   async addProduct(product) {

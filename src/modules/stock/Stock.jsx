@@ -273,7 +273,7 @@ const Stock = () => {
 
   const handleBulkImport = async (productList, onProgress) => {
     const result = await bulkAddProducts(productList, onProgress);
-    return { total: result.inserted, skipped: result.skipped };
+    return { total: result.inserted, skipped: result.skipped, error: result.firstError };
   };
 
   return (

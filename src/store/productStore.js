@@ -65,24 +65,18 @@ export const useProductStore = create((set, get) => ({
   bulkAddProducts: async (productList, onProgress) => {
     const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
-    // Fetch only the imported products by code (fast targeted query, not full table scan)
-    const importedCodes = productList.map(p => p.code);
-    let savedProducts = null;
-    try {
-      savedProducts = await Promise.race([
-        supabaseService.getProductsByCodes(importedCodes),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-      ]);
-    } catch (_) {}
-
-    // Merge into current state — use DB records (with real UUIDs) when available,
-    // fall back to optimistic merge with temp IDs
+    // Merge imported products into current state optimistically.
+    // Keeps existing UUID if the product was already in the store, otherwise uses a temp ID.
+    // Real UUIDs are resolved the next time initProducts() runs (app reload).
     set((state) => {
       const byCode = new Map(state.products.map(p => [p.code, p]));
-      const source = savedProducts ?? productList.map(p => ({ ...p, id: byCode.get(p.code)?.id || `temp-${p.code}` }));
-      for (const p of source) byCode.set(p.code, p);
+      for (const p of productList) {
+        const existing = byCode.get(p.code);
+        byCode.set(p.code, { ...p, id: existing?.id || `temp-${p.code}` });
+      }
       const next = [...byCode.values()];
-      scheduleSave(next);
+      // Write to localStorage synchronously so a page refresh doesn't lose the data
+      try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
       return { products: next };
     });
 

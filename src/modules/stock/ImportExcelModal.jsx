@@ -277,8 +277,13 @@ const ImportExcelModal = ({ onClose, onImport }) => {
                 </div>
                 <h3>No se pudo importar</h3>
                 <p className="result-detail">
-                  Ningún producto fue guardado. Revisá tu conexión e intentá de nuevo.
+                  Ningún producto fue guardado en la base de datos.
                 </p>
+                {importResult.error && (
+                  <div className="result-error-detail">
+                    <strong>Error:</strong> {importResult.error}
+                  </div>
+                )}
               </>
             )}
             <button className="btn-primary" style={{ marginTop: '1.5rem', width: '100%' }} onClick={onClose}>
@@ -542,6 +547,18 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         .result-step h3 { font-size: 1.3rem; margin: 0; }
         .result-detail  { color: var(--text-secondary); margin: 0; }
         .result-detail strong { color: white; }
+
+        .result-error-detail {
+          background: rgba(231, 76, 60, 0.08);
+          border: 1px solid rgba(231, 76, 60, 0.3);
+          border-radius: 8px;
+          padding: 0.75rem 1rem;
+          font-size: 0.8rem;
+          color: #e74c3c;
+          text-align: left;
+          width: 100%;
+          word-break: break-word;
+        }
 
         /* Progress bar */
         .progress-section {
