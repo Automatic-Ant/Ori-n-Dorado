@@ -7,7 +7,7 @@ export const supabaseService = {
       .from('products')
       .select('*')
       .order('name')
-      .limit(10000);
+      .limit(2000);
     
     if (error) {
       console.error('Error fetching products from Supabase:', error);

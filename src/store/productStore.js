@@ -10,15 +10,18 @@ function scheduleSave(products) {
   }, 300);
 }
 
+// Prevents initProducts from overwriting state during a bulk import
+let _bulkImporting = false;
+
 export const useProductStore = create((set, get) => ({
   products: [],
   isLoadingProducts: true,
-  
+
   setProducts: (items) => {
     const validItems = items.filter(p => p.name && p.name.trim() !== '');
     set({ products: validItems });
   },
-  
+
   setIsLoading: (status) => set({ isLoadingProducts: status }),
 
   initProducts: async () => {
@@ -30,27 +33,28 @@ export const useProductStore = create((set, get) => ({
 
       const liveProducts = await supabaseService.getAllProducts();
 
+      // If a bulk import ran while we were waiting for Supabase,
+      // don't overwrite — the import already set the correct state.
+      if (_bulkImporting) {
+        set({ isLoadingProducts: false });
+        return;
+      }
+
       if (!liveProducts) {
-        // Supabase falló → usar cache local
+        // Supabase failed → use local cache
         if (localProducts.length) set({ products: localProducts });
-      } else if (liveProducts.length > localProducts.length) {
-        // Supabase tiene MÁS productos (p.ej. importados desde otro dispositivo)
+      } else if (liveProducts.length >= localProducts.length) {
+        // Supabase is authoritative when it has equal or more products
         set({ products: liveProducts });
         localStorage.setItem('orion_products', JSON.stringify(liveProducts));
       } else {
-        // Local tiene igual o más productos → confiar en local (puede tener ediciones recientes)
-        // Esto evita que un reload sobreescriba ediciones que ya se guardaron localmente
-        if (localProducts.length > 0) {
-          set({ products: localProducts });
-        } else {
-          set({ products: liveProducts });
-          localStorage.setItem('orion_products', JSON.stringify(liveProducts));
-        }
-        // Sincronizar a Supabase los productos que faltan
+        // Local has more (recent edits not yet synced) → trust local
+        set({ products: localProducts });
+        // Sync missing to Supabase
         const liveCodeSet = new Set(liveProducts.map(lp => lp.code));
         const missingInSupabase = localProducts.filter(p => !liveCodeSet.has(p.code));
         for (const p of missingInSupabase) {
-          try { await supabaseService.addProduct(p); } catch (e) { /* ignora duplicados */ }
+          try { await supabaseService.addProduct(p); } catch (e) { /* ignore duplicates */ }
         }
       }
     } catch (error) {
@@ -63,37 +67,44 @@ export const useProductStore = create((set, get) => ({
   },
 
   bulkAddProducts: async (productList, onProgress) => {
-    const result = await supabaseService.bulkAddProducts(productList, onProgress);
+    _bulkImporting = true;
 
-    // Merge imported products into current state, sorted alphabetically.
-    // Keeps existing UUID when available; uses temp ID otherwise (resolved on next reload).
-    set((state) => {
-      const byCode = new Map(state.products.map(p => [p.code, p]));
-      for (const p of productList) {
-        const existing = byCode.get(p.code);
-        byCode.set(p.code, { ...p, id: existing?.id || `temp-${p.code}` });
-      }
-      const next = [...byCode.values()].sort((a, b) =>
-        (a.name || '').localeCompare(b.name || '', 'es')
-      );
-      try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
-      return { products: next };
-    });
+    try {
+      const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
-    onProgress?.(100);
-    return result;
+      // Merge into current state sorted alphabetically.
+      // Uses existing UUID when available; temp ID resolved on next reload.
+      set((state) => {
+        const byCode = new Map(state.products.map(p => [p.code, p]));
+        for (const p of productList) {
+          const existing = byCode.get(p.code);
+          byCode.set(p.code, { ...p, id: existing?.id || `temp-${p.code}` });
+        }
+        const next = [...byCode.values()].sort((a, b) =>
+          (a.name || '').localeCompare(b.name || '', 'es')
+        );
+        console.log(`[Import] Estado actualizado: ${next.length} productos en store`);
+        try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
+        return { products: next };
+      });
+
+      onProgress?.(100);
+      return result;
+    } finally {
+      _bulkImporting = false;
+    }
   },
 
   addProduct: async (product) => {
     const tempId = `temp-${Date.now()}`;
     const newProduct = { ...product, id: tempId };
-    
+
     // Optimistic UI update
     set((state) => {
       const updatedProducts = [...state.products, newProduct];
       return { products: updatedProducts };
     });
-    
+
     // Sync to Supabase
     try {
       await supabaseService.addProduct(product);
@@ -177,5 +188,3 @@ export const useProductStore = create((set, get) => ({
     scheduleSave(nextProducts);
   }
 }));
-
-
