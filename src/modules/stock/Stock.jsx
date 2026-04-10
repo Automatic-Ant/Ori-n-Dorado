@@ -138,6 +138,13 @@ const Stock = () => {
     return marcas;
   }, [products]);
 
+  const categoryOptions = useMemo(() => {
+    const cats = [...new Set(products.map(p => p.category).filter(Boolean))].sort((a, b) =>
+      normalize(a).localeCompare(normalize(b))
+    );
+    return cats;
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const term = normalize(deferredSearch);
     const marcaNorm = normalize(filterMarca);
@@ -365,11 +372,7 @@ const Stock = () => {
             <Filter size={15} className="filter-icon" />
             <select value={filterCategory} onChange={handleCategoryChange}>
               <option value="">Todas las categorías</option>
-              <option value="Cables">Cables</option>
-              <option value="Iluminación">Iluminación</option>
-              <option value="Protecciones">Protecciones</option>
-              <option value="Cajas">Cajas</option>
-              <option value="Otros">Otros</option>
+              {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
