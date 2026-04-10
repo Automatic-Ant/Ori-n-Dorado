@@ -1,5 +1,26 @@
 import { supabase } from '../lib/supabase';
 
+// Normaliza variaciones de categoría a un nombre canónico
+const CATEGORY_CANONICAL = {
+  'cable':        'Cables',
+  'cables':       'Cables',
+  'iluminacion':  'Iluminación',
+  'iluminación':  'Iluminación',
+  'caja':         'Cajas',
+  'cajas':        'Cajas',
+  'proteccion':   'Protecciones',
+  'protección':   'Protecciones',
+  'protecciones': 'Protecciones',
+  'otros':        'Otros',
+  'otro':         'Otros',
+};
+
+function canonicalCategory(cat) {
+  if (!cat) return 'Otros';
+  const key = String(cat).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return CATEGORY_CANONICAL[key] || cat;
+}
+
 export const supabaseService = {
   // PRODUCTS
   async getAllProducts() {
@@ -18,7 +39,7 @@ export const supabaseService = {
       id: item.id, // Supabase UUID
       code: item.code,
       name: item.name,
-      category: item.category,
+      category: canonicalCategory(item.category),
       stock: Number(item.stock),
       codigoPrecio: Number(item.codigo_precio),
       price: Number(item.price),
@@ -46,7 +67,7 @@ export const supabaseService = {
       chunks.push(deduped.slice(i, i + CHUNK).map(p => ({
         code:          String(p.code).trim(),
         name:          String(p.name).trim(),
-        category:      p.category      || 'Otros',
+        category:      canonicalCategory(p.category),
         stock:         Number(p.stock) || 0,
         codigo_precio: Number(p.codigoPrecio) || 0,
         price:         Number(p.price) || 0,

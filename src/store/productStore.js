@@ -31,10 +31,21 @@ export const useProductStore = create((set, get) => ({
       const localRaw = localStorage.getItem('orion_products');
       const localProducts = localRaw ? JSON.parse(localRaw) : [];
 
-      // One-time migration: normalize "ILUMINACION" → "Iluminación"
-      if (!localStorage.getItem('orion_cat_fix_v2')) {
-        await supabaseService.fixCategoryCase('ILUMINACION', 'Iluminación');
-        localStorage.setItem('orion_cat_fix_v2', '1');
+      // One-time migration: fix all-caps and singular category names in the DB
+      if (!localStorage.getItem('orion_cat_fix_v3')) {
+        const fixes = [
+          ['ILUMINACION', 'Iluminación'],
+          ['CABLE',       'Cables'],
+          ['CABLES',      'Cables'],
+          ['CAJA',        'Cajas'],
+          ['CAJAS',       'Cajas'],
+          ['PROTECCION',  'Protecciones'],
+          ['PROTECCIONES','Protecciones'],
+          ['OTROS',       'Otros'],
+          ['OTRO',        'Otros'],
+        ];
+        await Promise.all(fixes.map(([from, to]) => supabaseService.fixCategoryCase(from, to)));
+        localStorage.setItem('orion_cat_fix_v3', '1');
       }
 
       const liveProducts = await supabaseService.getAllProducts();
