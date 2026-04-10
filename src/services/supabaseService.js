@@ -448,6 +448,14 @@ export const supabaseService = {
     if (error) console.error('Error adding caja movement:', error);
   },
 
+  async fixCategoryCase(from, to) {
+    const { error } = await supabase
+      .from('products')
+      .update({ category: to })
+      .eq('category', from);
+    if (error) console.error(`Error fixing category "${from}" → "${to}":`, error);
+  },
+
   async deleteCajaMovement(id) {
     const { error } = await supabase
       .from('caja_movements')

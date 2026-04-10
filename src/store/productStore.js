@@ -40,6 +40,12 @@ export const useProductStore = create((set, get) => ({
         return;
       }
 
+      // One-time migration: normalize "ILUMINACION" → "Iluminación"
+      if (!localStorage.getItem('orion_cat_fix_v1')) {
+        await supabaseService.fixCategoryCase('ILUMINACION', 'Iluminación');
+        localStorage.setItem('orion_cat_fix_v1', '1');
+      }
+
       if (!liveProducts) {
         // Supabase failed → use local cache
         if (localProducts.length) set({ products: localProducts });
