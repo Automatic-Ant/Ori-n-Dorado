@@ -31,6 +31,12 @@ export const useProductStore = create((set, get) => ({
       const localRaw = localStorage.getItem('orion_products');
       const localProducts = localRaw ? JSON.parse(localRaw) : [];
 
+      // One-time migration: normalize "ILUMINACION" → "Iluminación"
+      if (!localStorage.getItem('orion_cat_fix_v2')) {
+        await supabaseService.fixCategoryCase('ILUMINACION', 'Iluminación');
+        localStorage.setItem('orion_cat_fix_v2', '1');
+      }
+
       const liveProducts = await supabaseService.getAllProducts();
 
       // If a bulk import ran while we were waiting for Supabase,
@@ -38,12 +44,6 @@ export const useProductStore = create((set, get) => ({
       if (_bulkImporting) {
         set({ isLoadingProducts: false });
         return;
-      }
-
-      // One-time migration: normalize "ILUMINACION" → "Iluminación"
-      if (!localStorage.getItem('orion_cat_fix_v1')) {
-        await supabaseService.fixCategoryCase('ILUMINACION', 'Iluminación');
-        localStorage.setItem('orion_cat_fix_v1', '1');
       }
 
       if (!liveProducts) {
