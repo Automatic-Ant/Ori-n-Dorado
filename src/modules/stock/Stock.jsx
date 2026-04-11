@@ -282,7 +282,7 @@ const Stock = () => {
   const handleExecuteDelete = () => {
     if (productToDelete) {
       console.log('UI: Deleting product:', productToDelete.id, productToDelete.code);
-      deleteProduct(productToDelete.id);
+      deleteProduct(productToDelete.id, productToDelete.code);
       setIsDeleteModalOpen(false);
       setProductToDelete(null);
     }

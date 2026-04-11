@@ -239,15 +239,38 @@ export const supabaseService = {
     if (error) console.error('Error updating stock in Supabase:', error);
   },
 
-  async deleteProduct(id) {
-    const { error } = await supabase
+  async deleteProduct(id, code) {
+    // 1. Try by UUID
+    const { data, error } = await supabase
       .from('products')
       .delete()
-      .eq('id', id);
-    
+      .eq('id', id)
+      .select('id');
+
     if (error) {
-      console.error('Error deleting product from Supabase:', error);
+      console.error('Error deleting product by id:', error);
       throw error;
+    }
+
+    if (data && data.length > 0) return; // deleted successfully
+
+    // 2. UUID didn't match (temp ID from bulk import) — fallback by code
+    if (!code) throw new Error(`No se encontró el producto con ID "${id}" en la base de datos.`);
+
+    console.warn(`[Supabase] deleteProduct: UUID "${id}" no encontrado, intentando por código "${code}"...`);
+    const { data: data2, error: error2 } = await supabase
+      .from('products')
+      .delete()
+      .eq('code', code)
+      .select('id');
+
+    if (error2) {
+      console.error('Error deleting product by code:', error2);
+      throw error2;
+    }
+
+    if (!data2 || data2.length === 0) {
+      throw new Error(`No se encontró el producto con código "${code}" en la base de datos.`);
     }
   },
 

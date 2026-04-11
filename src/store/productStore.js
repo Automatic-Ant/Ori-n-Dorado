@@ -149,7 +149,7 @@ export const useProductStore = create((set, get) => ({
     }
   },
 
-  deleteProduct: async (id) => {
+  deleteProduct: async (id, code) => {
     const previousProducts = get().products;
 
     // 1. Optimistic Update
@@ -160,9 +160,9 @@ export const useProductStore = create((set, get) => ({
     });
     scheduleSave(nextProducts);
 
-    // 2. Sync to Supabase
+    // 2. Sync to Supabase (falls back to code lookup if id is a temp ID)
     try {
-      await supabaseService.deleteProduct(id);
+      await supabaseService.deleteProduct(id, code);
     } catch (e) {
       console.error('Delete Product Error, rolling back:', e);
       set({ products: previousProducts });
