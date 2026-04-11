@@ -238,21 +238,24 @@ export const supabaseService = {
 
   // CUSTOMERS
   async getAllCustomers() {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('name')
-      .limit(5000);
-    
-    if (error) {
-      console.error('Error fetching customers from Supabase:', error);
-      return null;
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('name')
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) {
+        console.error('Error fetching customers from Supabase:', error);
+        return allRows.length > 0 ? allRows.map(c => ({ ...c, creditBalance: Number(c.credit_balance) })) : null;
+      }
+      allRows = allRows.concat(data);
+      if (data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
-    
-    return data.map(c => ({
-      ...c,
-      creditBalance: Number(c.credit_balance)
-    }));
+    return allRows.map(c => ({ ...c, creditBalance: Number(c.credit_balance) }));
   },
 
   async addCustomer(customer) {
@@ -309,37 +312,47 @@ export const supabaseService = {
 
   // SALES
   async getAllSales() {
-    const { data, error } = await supabase
-      .from('sales')
-      .select('*, sale_items(*)')
-      .order('date', { ascending: false })
-      .limit(5000);
-
-    if (error) {
-      console.error('Error fetching sales from Supabase:', error);
-      return null;
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*, sale_items(*)')
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) {
+        console.error('Error fetching sales from Supabase:', error);
+        return allRows.length > 0 ? allRows.map(mapSale) : null;
+      }
+      allRows = allRows.concat(data);
+      if (data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
+    return allRows.map(mapSale);
 
-    return data.map(sale => ({
-      id: sale.external_id || sale.id,
-      supabaseId: sale.id,
-      date: sale.date,
-      time: new Date(sale.date).toLocaleTimeString('es-AR'),
-      total: Number(sale.total),
-      paymentMethod: sale.payment_method,
-      customerDni: sale.customer_dni || '',
-      customerName: sale.customer_name || '',
-      status: sale.status,
-      sellerName: sale.seller_name || '',
-      items: (sale.sale_items || []).map(item => ({
-        id: item.product_id,
-        code: item.product_code,
-        name: item.product_name,
-        quantity: Number(item.quantity),
-        price: Number(item.price),
-        subtotal: Number(item.subtotal)
-      }))
-    }));
+    function mapSale(sale) {
+      return {
+        id: sale.external_id || sale.id,
+        supabaseId: sale.id,
+        date: sale.date,
+        time: new Date(sale.date).toLocaleTimeString('es-AR'),
+        total: Number(sale.total),
+        paymentMethod: sale.payment_method,
+        customerDni: sale.customer_dni || '',
+        customerName: sale.customer_name || '',
+        status: sale.status,
+        sellerName: sale.seller_name || '',
+        items: (sale.sale_items || []).map(item => ({
+          id: item.product_id,
+          code: item.product_code,
+          name: item.product_name,
+          quantity: Number(item.quantity),
+          price: Number(item.price),
+          subtotal: Number(item.subtotal),
+        })),
+      };
+    }
   },
 
   async syncSale(sale) {
@@ -437,17 +450,24 @@ export const supabaseService = {
 
   // CREDIT NOTES
   async getAllCreditNotes() {
-    const { data, error } = await supabase
-      .from('credit_notes')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(5000);
-    
-    if (error) {
-      console.error('Error fetching credit notes from Supabase:', error);
-      return null;
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('credit_notes')
+        .select('*')
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) {
+        console.error('Error fetching credit notes from Supabase:', error);
+        return allRows.length > 0 ? allRows : null;
+      }
+      allRows = allRows.concat(data);
+      if (data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
-    return data;
+    return allRows;
   },
 
   async addCreditNote(note) {
@@ -465,26 +485,36 @@ export const supabaseService = {
 
   // CAJA MOVEMENTS
   async getAllCajaMovements() {
-    const { data, error } = await supabase
-      .from('caja_movements')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(5000);
-
-    if (error) {
-      console.error('Error fetching caja movements:', error);
-      return null;
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('caja_movements')
+        .select('*')
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) {
+        console.error('Error fetching caja movements:', error);
+        return allRows.length > 0 ? allRows.map(mapMovement) : null;
+      }
+      allRows = allRows.concat(data);
+      if (data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
+    return allRows.map(mapMovement);
 
-    return data.map(m => ({
-      id: m.id,
-      type: m.type,
-      amount: Number(m.amount),
-      description: m.description || '',
-      sellerName: m.seller_name || '',
-      date: m.date,
-      time: new Date(m.date).toLocaleTimeString('es-AR'),
-    }));
+    function mapMovement(m) {
+      return {
+        id: m.id,
+        type: m.type,
+        amount: Number(m.amount),
+        description: m.description || '',
+        sellerName: m.seller_name || '',
+        date: m.date,
+        time: new Date(m.date).toLocaleTimeString('es-AR'),
+      };
+    }
   },
 
   async addCajaMovement(movement) {
