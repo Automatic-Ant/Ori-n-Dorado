@@ -24,31 +24,46 @@ function canonicalCategory(cat) {
 export const supabaseService = {
   // PRODUCTS
   async getAllProducts() {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('name')
-      .limit(2000);
-    
-    if (error) {
-      console.error('Error fetching products from Supabase:', error);
-      return null;
+    // Paginate to bypass Supabase's server-side max_rows cap (default 1000).
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name')
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('Error fetching products from Supabase:', error);
+        return allRows.length > 0 ? allRows.map(mapProduct) : null;
+      }
+
+      allRows = allRows.concat(data);
+      if (data.length < PAGE_SIZE) break; // last page
+      from += PAGE_SIZE;
     }
 
-    return data.map(item => ({
-      id: item.id, // Supabase UUID
-      code: item.code,
-      name: item.name,
-      category: canonicalCategory(item.category),
-      stock: Number(item.stock),
-      codigoPrecio: Number(item.codigo_precio),
-      price: Number(item.price),
-      baseCode: Number(item.base_code),
-      minStock: Number(item.min_stock),
-      unit: item.unit,
-      marca: item.marca || '',
-      listPrice: Number(item.list_price) || 0
-    }));
+    return allRows.map(mapProduct);
+
+    function mapProduct(item) {
+      return {
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: canonicalCategory(item.category),
+        stock: Number(item.stock),
+        codigoPrecio: Number(item.codigo_precio),
+        price: Number(item.price),
+        baseCode: Number(item.base_code),
+        minStock: Number(item.min_stock),
+        unit: item.unit,
+        marca: item.marca || '',
+        listPrice: Number(item.list_price) || 0,
+      };
+    }
   },
 
   async bulkAddProducts(products, onProgress) {
