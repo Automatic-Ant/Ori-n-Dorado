@@ -172,7 +172,7 @@ const Stock = () => {
       if (filterStock === 'bajo' && !(stockVal <= minStockVal && stockVal > 0)) return false;
       if (filterStock === 'sin'  && stockVal !== 0) return false;
       if (onlyLowStock && stockVal > minStockVal) return false;
-      if (onlyNoPrecio && Number(p.price) > 0) return false;
+      if (onlyNoPrecio && Number(p.price) === 0) return false;
 
       return true;
     });
@@ -411,7 +411,7 @@ const Stock = () => {
               onChange={(e) => setOnlyNoPrecio(e.target.checked)}
               style={{ accentColor: 'var(--color-gold, #c9a84c)', marginRight: '0.4rem' }}
             />
-            <span className="filter-label">Sin precio</span>
+            <span className="filter-label">Con precio</span>
           </label>
 
           {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock || !onlyNoPrecio) && (
