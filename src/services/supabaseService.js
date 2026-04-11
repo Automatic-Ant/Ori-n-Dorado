@@ -67,9 +67,10 @@ export const supabaseService = {
   },
 
   async bulkAddProducts(products, onProgress) {
-    const CHUNK = 50;       // Products per request
-    const CONCURRENCY = 4;  // Parallel requests at a time
-    const TIMEOUT_MS = 60000;
+    const CHUNK = 25;        // Smaller chunks → less load per request
+    const CONCURRENCY = 2;   // Only 2 parallel requests to avoid overwhelming a cold server
+    const TIMEOUT_MS = 90000;
+    const RETRY_DELAY_MS = 4000;
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
@@ -100,26 +101,40 @@ export const supabaseService = {
     let skipped = 0;
     let firstError = null;
 
-    const uploadChunk = async (chunk, index) => {
-      try {
-        const { error } = await Promise.race([
-          supabase.from('products').upsert(chunk, { onConflict: 'code', ignoreDuplicates: false }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout: el servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.')), TIMEOUT_MS)
-          ),
-        ]);
+    const upsertWithTimeout = (chunk) =>
+      Promise.race([
+        supabase.from('products').upsert(chunk, { onConflict: 'code', ignoreDuplicates: false }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)
+        ),
+      ]);
 
-        if (error) {
-          console.error(`[Import] Error en chunk ${index + 1}:`, error.message);
-          if (!firstError) firstError = error.message;
-          skipped += chunk.length;
-        } else {
-          inserted += chunk.length;
+    const uploadChunk = async (chunk, index) => {
+      let lastErr = null;
+      // Try up to 3 times with a delay between retries
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { error } = await upsertWithTimeout(chunk);
+          if (error) {
+            lastErr = error.message;
+            console.warn(`[Import] Chunk ${index + 1} intento ${attempt} — error:`, error.message);
+          } else {
+            inserted += chunk.length;
+            lastErr = null;
+            break;
+          }
+        } catch (e) {
+          lastErr = e.message === 'timeout'
+            ? 'El servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.'
+            : e.message;
+          console.warn(`[Import] Chunk ${index + 1} intento ${attempt} — excepción:`, lastErr);
         }
-      } catch (e) {
-        console.error(`[Import] Excepción en chunk ${index + 1}:`, e.message);
-        if (!firstError) firstError = e.message;
+        if (attempt < 3) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      }
+
+      if (lastErr) {
         skipped += chunk.length;
+        if (!firstError) firstError = lastErr;
       }
 
       completed++;
