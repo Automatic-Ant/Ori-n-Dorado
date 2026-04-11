@@ -82,6 +82,7 @@ const Stock = () => {
   const deferredSearch = useDeferredValue(searchInput);
   const isSearchStale = searchInput !== deferredSearch;
   const [onlyLowStock, setOnlyLowStock] = useState(false);
+  const [onlyNoPrecio, setOnlyNoPrecio] = useState(true);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
@@ -103,7 +104,7 @@ const Stock = () => {
   }, [globalBaseCode]);
 
   // Reset page when any filter (including deferred search) settles
-  useEffect(() => { setCurrentPage(1); }, [deferredSearch, filterMarca, filterCategory, filterStock, onlyLowStock]);
+  useEffect(() => { setCurrentPage(1); }, [deferredSearch, filterMarca, filterCategory, filterStock, onlyLowStock, onlyNoPrecio]);
 
   // Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -171,10 +172,11 @@ const Stock = () => {
       if (filterStock === 'bajo' && !(stockVal <= minStockVal && stockVal > 0)) return false;
       if (filterStock === 'sin'  && stockVal !== 0) return false;
       if (onlyLowStock && stockVal > minStockVal) return false;
+      if (onlyNoPrecio && Number(p.price) > 0 && Number(p.listPrice) > 0) return false;
 
       return true;
     });
-  }, [products, deferredSearch, onlyLowStock, filterMarca, filterCategory, filterStock]);
+  }, [products, deferredSearch, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock]);
 
   // Reset to page 1 whenever filters change
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
@@ -211,7 +213,7 @@ const Stock = () => {
   const handleMarcaChange = useCallback((e) => { setFilterMarca(e.target.value); setCurrentPage(1); }, []);
   const handleCategoryChange = useCallback((e) => { setFilterCategory(e.target.value); setCurrentPage(1); }, []);
   const handleStockFilterChange = useCallback((e) => { setFilterStock(e.target.value); setOnlyLowStock(false); setCurrentPage(1); }, []);
-  const handleClearFilters = useCallback(() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); setCurrentPage(1); }, []);
+  const handleClearFilters = useCallback(() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); setOnlyNoPrecio(true); setCurrentPage(1); }, []);
 
   const handleOpenModal = (product = null) => {
     if (product) {
@@ -402,7 +404,17 @@ const Stock = () => {
             />
           </div>
 
-          {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock) && (
+          <label className="filters card glass no-precio-filter" style={{ padding: '0 1rem', cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={onlyNoPrecio}
+              onChange={(e) => setOnlyNoPrecio(e.target.checked)}
+              style={{ accentColor: 'var(--color-gold, #c9a84c)', marginRight: '0.4rem' }}
+            />
+            <span className="filter-label">Sin precio</span>
+          </label>
+
+          {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock || !onlyNoPrecio) && (
             <button
               className="clear-filters-btn card glass"
               onClick={handleClearFilters}
