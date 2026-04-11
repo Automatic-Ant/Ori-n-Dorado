@@ -13,27 +13,25 @@ export const useCustomerStore = create((set, get) => ({
 
       const liveCustomers = await supabaseService.getAllCustomers();
 
-      if (liveCustomers && liveCustomers.length >= localCustomers.length) {
-        // Supabase has same or more → source of truth
-        set({ customers: liveCustomers });
-        localStorage.setItem('orion_customers', JSON.stringify(liveCustomers));
-      } else if (liveCustomers && liveCustomers.length < localCustomers.length) {
-        // Local has more → keep local and sync missing ones to Supabase
-        set({ customers: localCustomers });
-        for (const c of localCustomers) {
-          const exists = liveCustomers.find((lc) => lc.dni === c.dni);
-          if (!exists) {
-            try { await supabaseService.addCustomer(c); } catch (e) { /* ignore duplicates */ }
-          }
+      if (liveCustomers) {
+        // Supabase is source of truth for all persisted records.
+        // Only sync local customers that have a temp ID (created offline, not yet in Supabase).
+        const unsynced = localCustomers.filter((c) => c.id && c.id.startsWith('temp-'));
+
+        let finalCustomers = liveCustomers;
+        for (const c of unsynced) {
+          try {
+            const saved = await supabaseService.addCustomer(c);
+            if (saved) {
+              finalCustomers = [...finalCustomers, { ...saved, creditBalance: Number(saved.credit_balance || 0) }];
+            }
+          } catch (e) { /* ignore duplicates */ }
         }
-        // Refetch after sync
-        const synced = await supabaseService.getAllCustomers();
-        if (synced) {
-          set({ customers: synced });
-          localStorage.setItem('orion_customers', JSON.stringify(synced));
-        }
+
+        set({ customers: finalCustomers });
+        localStorage.setItem('orion_customers', JSON.stringify(finalCustomers));
       } else {
-        // Supabase failed → use local cache
+        // Supabase unreachable → fall back to local cache
         if (localCustomers.length) set({ customers: localCustomers });
       }
     } catch (e) {

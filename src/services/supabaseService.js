@@ -226,7 +226,8 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('customers')
       .select('*')
-      .order('name');
+      .order('name')
+      .limit(5000);
     
     if (error) {
       console.error('Error fetching customers from Supabase:', error);
@@ -276,12 +277,19 @@ export const supabaseService = {
   },
 
   async deleteCustomer(id) {
+    // Null out customer references first to avoid FK constraint violations
+    await supabase.from('sales').update({ customer_id: null }).eq('customer_id', id);
+    await supabase.from('credit_notes').update({ customer_id: null }).eq('customer_id', id);
+
     const { error } = await supabase
       .from('customers')
       .delete()
       .eq('id', id);
-    
-    if (error) console.error('Error deleting customer from Supabase:', error);
+
+    if (error) {
+      console.error('Error deleting customer from Supabase:', error);
+      throw error;
+    }
   },
 
   // SALES
@@ -289,7 +297,8 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('sales')
       .select('*, sale_items(*)')
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .limit(5000);
 
     if (error) {
       console.error('Error fetching sales from Supabase:', error);
@@ -416,7 +425,8 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('credit_notes')
       .select('*')
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .limit(5000);
     
     if (error) {
       console.error('Error fetching credit notes from Supabase:', error);
@@ -443,7 +453,8 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('caja_movements')
       .select('*')
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .limit(5000);
 
     if (error) {
       console.error('Error fetching caja movements:', error);

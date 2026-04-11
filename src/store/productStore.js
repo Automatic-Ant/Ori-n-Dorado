@@ -57,22 +57,13 @@ export const useProductStore = create((set, get) => ({
         return;
       }
 
-      if (!liveProducts) {
-        // Supabase failed → use local cache
-        if (localProducts.length) set({ products: localProducts });
-      } else if (liveProducts.length >= localProducts.length) {
-        // Supabase is authoritative when it has equal or more products
+      if (liveProducts) {
+        // Supabase is always the source of truth
         set({ products: liveProducts });
         localStorage.setItem('orion_products', JSON.stringify(liveProducts));
       } else {
-        // Local has more (recent edits not yet synced) → trust local
-        set({ products: localProducts });
-        // Sync missing to Supabase
-        const liveCodeSet = new Set(liveProducts.map(lp => lp.code));
-        const missingInSupabase = localProducts.filter(p => !liveCodeSet.has(p.code));
-        for (const p of missingInSupabase) {
-          try { await supabaseService.addProduct(p); } catch (e) { /* ignore duplicates */ }
-        }
+        // Supabase unreachable → fall back to local cache
+        if (localProducts.length) set({ products: localProducts });
       }
     } catch (error) {
       console.error('Failed to init products:', error);
