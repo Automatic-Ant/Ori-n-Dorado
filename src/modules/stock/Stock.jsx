@@ -96,7 +96,7 @@ const Stock = () => {
   const deferredSearch = useDeferredValue(searchInput);
   const isSearchStale = searchInput !== deferredSearch;
   const [onlyLowStock, setOnlyLowStock] = useState(() => !!location.state?.filterLowStock);
-  const [onlyNoPrecio, setOnlyNoPrecio] = useState(true);
+  const [onlyNoPrecio, setOnlyNoPrecio] = useState(false);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
@@ -341,6 +341,10 @@ const Stock = () => {
           <p className="page-subtitle">Gestión de productos y control de existencias.</p>
         </div>
         <div className="header-actions">
+          <button className="btn-secondary" onClick={() => initProducts()} title="Sincronizar con la base de datos">
+            <TrendingUp size={18} />
+            Actualizar
+          </button>
           {isAdmin && (
             <button className="btn-import" onClick={() => setIsImportModalOpen(true)}>
               <Upload size={18} />

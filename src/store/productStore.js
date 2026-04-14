@@ -56,21 +56,22 @@ export const useProductStore = create((set, get) => ({
       }
 
       if (liveProducts && liveProducts.length > 0) {
-        // Supabase is always the source of truth. 
-        // We set the state and overwrite local cache immediately.
         set({ products: liveProducts });
         localStorage.setItem('orion_products', JSON.stringify(liveProducts));
         console.log(`[Init] ${liveProducts.length} productos cargados desde Supabase.`);
+      } else if (liveProducts && liveProducts.length === 0) {
+        set({ products: [] });
+        localStorage.setItem('orion_products', JSON.stringify([]));
+        console.warn('[Init] La base de datos de Supabase parece estar vacía.');
       } else {
-        // Si Supabase devuelve vacío o falla, intentamos usar lo local como último recurso
+        // Si Supabase devuelve null es que falló la conexión
         if (localProducts.length) {
           set({ products: localProducts });
         }
       }
     } catch (error) {
       console.error('Failed to init products:', error);
-      const localRaw = localStorage.getItem('orion_products');
-      if (localRaw) set({ products: JSON.parse(localRaw) });
+      alert("Error de conexión: No se pudieron cargar los productos de la base de datos.");
     }
 
     set({ isLoadingProducts: false });
