@@ -95,8 +95,8 @@ export function mapCajaMovement(m) {
 export const supabaseService = {
   // PRODUCTS
   async getAllProducts() {
-    const PAGE_SIZE = 1000;
     let allRows = [];
+    const PAGE_SIZE = 1000;
     let from = 0;
     while (true) {
       const { data, error } = await supabase
@@ -104,10 +104,12 @@ export const supabaseService = {
         .select('*')
         .order('name')
         .range(from, from + PAGE_SIZE - 1);
+
       if (error) {
         console.error('Error fetching products from Supabase:', error);
-        return allRows.length > 0 ? allRows.map(mapProduct) : null;
+        throw new Error(`Error Supabase (${error.code}): ${error.message}`);
       }
+
       allRows = allRows.concat(data);
       if (data.length < PAGE_SIZE) break;
       from += PAGE_SIZE;
@@ -294,6 +296,7 @@ export const supabaseService = {
       throw err;
     }
   },
+
 
   async getAllCustomers() {
     const { data, error } = await supabase.from('customers').select('*').order('name');
