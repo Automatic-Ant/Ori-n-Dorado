@@ -451,6 +451,15 @@ export const supabaseService = {
     await supabase.from('caja_movements').delete().eq('id', id);
   },
 
+  async fixCategoryCase(from, to) {
+    try {
+      const { error } = await supabase.from('products').update({ category: to }).eq('category', from);
+      if (error) console.error(`Error migrando categorías de ${from} a ${to}:`, error);
+    } catch (e) {
+      console.error('Error en fixCategoryCase:', e);
+    }
+  },
+
   async getSaleById(id) {
     const { data, error } = await supabase.from('sales').select('*, sale_items(*)').eq('id', id).single();
     return data ? mapSale(data) : null;
