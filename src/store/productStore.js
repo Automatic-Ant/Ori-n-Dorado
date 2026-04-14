@@ -189,6 +189,13 @@ export const useProductStore = create((set, get) => ({
       console.error('Delete Product Error, rolling back:', e);
       set({ products: previousProducts });
       scheduleSave(previousProducts);
+      
+      const errorMsg = e.message || '';
+      if (errorMsg.includes('foreign key constraint')) {
+        alert("No se puede eliminar el producto porque tiene ventas asociadas. Podés editarlo o cambiarle el stock a 0.");
+      } else {
+        alert("Error al eliminar el producto: " + (e.message || "Error desconocido"));
+      }
     }
   },
 
