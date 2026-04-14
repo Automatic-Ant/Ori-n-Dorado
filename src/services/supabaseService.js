@@ -69,8 +69,8 @@ export const supabaseService = {
   async bulkAddProducts(products, onProgress) {
     const CHUNK = 25;        // Smaller chunks → less load per request
     const CONCURRENCY = 2;   // Only 2 parallel requests to avoid overwhelming a cold server
-    const TIMEOUT_MS = 90000;
-    const RETRY_DELAY_MS = 4000;
+    const TIMEOUT_MS = 15000;
+    const RETRY_DELAY_MS = 2000;
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
@@ -101,6 +101,9 @@ export const supabaseService = {
     let skipped = 0;
     let firstError = null;
 
+    // Signal that processing has started (avoids staying at 0% during the first network call)
+    onProgress?.(totalChunks > 0 ? 1 : 0);
+
     const upsertWithTimeout = (chunk) =>
       Promise.race([
         supabase.from('products').upsert(chunk, { onConflict: 'code', ignoreDuplicates: false }),
@@ -110,6 +113,11 @@ export const supabaseService = {
       ]);
 
     const uploadChunk = async (chunk, index) => {
+      // Report start of this chunk so the bar moves even while waiting for the response
+      if (totalChunks > 0) {
+        onProgress?.(Math.round(1 + (index / totalChunks) * 80));
+      }
+
       let lastErr = null;
       // Try up to 3 times with a delay between retries
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -139,7 +147,7 @@ export const supabaseService = {
 
       completed++;
       console.log(`[Import] Chunk ${index + 1}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
-      onProgress?.(Math.round((completed / totalChunks) * 90));
+      onProgress?.(Math.round(1 + (completed / totalChunks) * 89));
     };
 
     // Process in parallel waves of CONCURRENCY

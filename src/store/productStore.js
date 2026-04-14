@@ -136,15 +136,22 @@ export const useProductStore = create((set, get) => ({
       nextProducts = state.products.map(p => p.id === id ? { ...p, ...updatedProduct } : p);
       return { products: nextProducts };
     });
-    scheduleSave(nextProducts);
+    // Save immediately so a reload mid-flight sees the updated data
+    try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch (_) {}
 
     // 2. Sync to Supabase
     try {
       await supabaseService.updateProduct(id, updatedProduct, originalCode);
+      // Re-fetch from Supabase to confirm the persisted state (same as addProduct)
+      const confirmed = await supabaseService.getAllProducts();
+      if (confirmed) {
+        set({ products: confirmed });
+        localStorage.setItem('orion_products', JSON.stringify(confirmed));
+      }
     } catch (e) {
       console.error('Update Product Error, rolling back:', e);
       set({ products: previousProducts });
-      scheduleSave(previousProducts);
+      try { localStorage.setItem('orion_products', JSON.stringify(previousProducts)); } catch (_) {}
       throw e;
     }
   },

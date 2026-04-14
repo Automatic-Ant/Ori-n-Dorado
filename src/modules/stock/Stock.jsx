@@ -192,16 +192,16 @@ const Stock = () => {
   const handleEditProduct = useCallback((product) => {
     setEditingProduct(product);
     setFormData({
-      name: product.name || '',
-      code: product.code || '',
+      name: product.name ?? '',
+      code: product.code ?? '',
       category: product.category || 'Cables',
-      codigoPrecio: product.codigoPrecio || '',
-      baseCode: product.baseCode || '',
-      stock: product.stock || 0,
-      minStock: product.minStock || 0,
+      codigoPrecio: product.codigoPrecio ?? '',
+      baseCode: product.baseCode ?? '',
+      stock: product.stock ?? 0,
+      minStock: product.minStock ?? 0,
       unit: product.unit || 'unidad',
-      marca: product.marca || '',
-      listPrice: product.listPrice || ''
+      marca: product.marca ?? '',
+      listPrice: product.listPrice ?? ''
     });
     setIsModalOpen(true);
   }, []);
@@ -219,16 +219,16 @@ const Stock = () => {
     if (product) {
       setEditingProduct(product);
       setFormData({
-        name: product.name || '',
-        code: product.code || '',
+        name: product.name ?? '',
+        code: product.code ?? '',
         category: product.category || 'Cables',
-        codigoPrecio: product.codigoPrecio || '',
-        baseCode: product.baseCode || '',
-        stock: product.stock || 0,
-        minStock: product.minStock || 0,
+        codigoPrecio: product.codigoPrecio ?? '',
+        baseCode: product.baseCode ?? '',
+        stock: product.stock ?? 0,
+        minStock: product.minStock ?? 0,
         unit: product.unit || 'unidad',
-        marca: product.marca || '',
-        listPrice: product.listPrice || ''
+        marca: product.marca ?? '',
+        listPrice: product.listPrice ?? ''
       });
     } else {
       setEditingProduct(null);
