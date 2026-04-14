@@ -49,14 +49,17 @@ export const realtimeService = {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, async (payload) => {
         console.log('[Realtime] Sale change:', payload.eventType);
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const fullSale = await supabaseService.getSaleById(payload.new.id);
-          if (fullSale) {
-            useSaleStore.getState().handleRealtimeEvent({
-              ...payload,
-              table: 'sales',
-              new: fullSale
-            });
-          }
+          // Wait 1 second to ensure sale_items are also inserted before fetching full object
+          setTimeout(async () => {
+            const fullSale = await supabaseService.getSaleById(payload.new.id);
+            if (fullSale) {
+              useSaleStore.getState().handleRealtimeEvent({
+                ...payload,
+                table: 'sales',
+                new: fullSale
+              });
+            }
+          }, 1000);
         } else {
           useSaleStore.getState().handleRealtimeEvent({ ...payload, table: 'sales' });
         }

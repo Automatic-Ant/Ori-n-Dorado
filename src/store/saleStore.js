@@ -140,7 +140,8 @@ export const useSaleStore = create((set, get) => ({
         } else if (eventType === 'UPDATE') {
           next = next.map(s => s.id === newItem.id ? { ...s, ...newItem } : s);
         } else if (eventType === 'DELETE') {
-          next = next.filter(s => s.id !== oldItem.id);
+          // Match by internal UUID (supabaseId) or displayed ID
+          next = next.filter(s => s.supabaseId !== oldItem.id && s.id !== oldItem.id);
         }
         localStorage.setItem('orion_sales', JSON.stringify(next));
         return { sales: next };
