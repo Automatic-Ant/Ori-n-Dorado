@@ -69,17 +69,18 @@ export const supabaseService = {
   },
 
   async bulkAddProducts(products, onProgress) {
-    const CHUNK = 100;       // Larger chunks → fewer requests (10 chunks per 1000 products)
-    const CONCURRENCY = 2;   // Keep at 2 — higher concurrency causes deadlocks on upsert
-    const TIMEOUT_MS = 25000;
-    const RETRY_DELAY_MS = 1500;
+    const CHUNK = 500;       
+    const CONCURRENCY = 3;   
+    const TIMEOUT_MS = 60000;
+    const RETRY_DELAY_MS = 2000;
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
-    for (const p of products) seen.set(p.code, p);
+    for (const p of products) {
+      if (p.code) seen.set(String(p.code).trim(), p);
+    }
     const deduped = [...seen.values()];
 
-    // Build DB-shaped chunks
     const chunks = [];
     for (let i = 0; i < deduped.length; i += CHUNK) {
       chunks.push(deduped.slice(i, i + CHUNK).map(p => ({
@@ -94,6 +95,8 @@ export const supabaseService = {
         unit:          p.unit  || 'unidad',
         marca:         String(p.marca || ''),
         list_price:    Number(p.listPrice) || 0,
+        parent_product_id: p.parentProductId || null,
+        units_per_package: Number(p.unitsPerPackage) || 1,
       })));
     }
 
@@ -102,42 +105,36 @@ export const supabaseService = {
     let inserted = 0;
     let skipped = 0;
     let firstError = null;
+    let allInsertedRows = [];
 
-    // Signal that processing has started (avoids staying at 0% during the first network call)
     onProgress?.(totalChunks > 0 ? 1 : 0);
 
     const upsertWithTimeout = (chunk) =>
       Promise.race([
-        supabase.from('products').upsert(chunk, { onConflict: 'code', ignoreDuplicates: false }),
+        supabase.from('products').upsert(chunk, { onConflict: 'code' }).select(),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)
         ),
       ]);
 
     const uploadChunk = async (chunk, index) => {
-      // Report start of this chunk so the bar moves even while waiting for the response
-      if (totalChunks > 0) {
-        onProgress?.(Math.round(1 + (index / totalChunks) * 80));
-      }
-
       let lastErr = null;
-      // Try up to 3 times with a delay between retries
+      let data = null;
+
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const { error } = await upsertWithTimeout(chunk);
-          if (error) {
-            lastErr = error.message;
-            console.warn(`[Import] Chunk ${index + 1} intento ${attempt} — error:`, error.message);
+          const res = await upsertWithTimeout(chunk);
+          if (res.error) {
+            lastErr = res.error.message;
           } else {
+            data = res.data;
             inserted += chunk.length;
             lastErr = null;
+            if (data) allInsertedRows = allInsertedRows.concat(data);
             break;
           }
         } catch (e) {
-          lastErr = e.message === 'timeout'
-            ? 'El servidor tardó demasiado. Verificá tu conexión o que el proyecto de Supabase esté activo.'
-            : e.message;
-          console.warn(`[Import] Chunk ${index + 1} intento ${attempt} — excepción:`, lastErr);
+          lastErr = e.message;
         }
         if (attempt < 3) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       }
@@ -148,17 +145,35 @@ export const supabaseService = {
       }
 
       completed++;
-      console.log(`[Import] Chunk ${index + 1}/${totalChunks} — insertados: ${inserted}, omitidos: ${skipped}`);
-      onProgress?.(Math.round(1 + (completed / totalChunks) * 89));
+      onProgress?.(Math.round(1 + (completed / totalChunks) * 98));
     };
 
-    // Process in parallel waves of CONCURRENCY
     for (let i = 0; i < chunks.length; i += CONCURRENCY) {
       const wave = chunks.slice(i, i + CONCURRENCY);
       await Promise.all(wave.map((chunk, j) => uploadChunk(chunk, i + j)));
     }
 
-    return { inserted, skipped, firstError };
+    return { 
+      inserted, 
+      skipped, 
+      firstError, 
+      rows: allInsertedRows.map(item => ({
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: canonicalCategory(item.category),
+        stock: Number(item.stock),
+        codigoPrecio: Number(item.codigo_precio),
+        price: Number(item.price),
+        baseCode: Number(item.base_code),
+        minStock: Number(item.min_stock),
+        unit: item.unit,
+        marca: item.marca || '',
+        listPrice: Number(item.list_price) || 0,
+        parentProductId: item.parent_product_id || null,
+        units_per_package: Number(item.units_per_package) || 1,
+      }))
+    };
   },
 
   async addProduct(product) {

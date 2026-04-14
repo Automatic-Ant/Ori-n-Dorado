@@ -80,27 +80,29 @@ export const useProductStore = create((set, get) => ({
     try {
       const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
-      // Merge into current state sorted alphabetically.
-      // Uses existing UUID when available; temp ID resolved on next reload.
-      // NOTE: sort without locale param is ~10x faster for large lists.
-      let nextProducts;
+      const importedRows = result.rows || [];
+      
       set((state) => {
+        // Map current products by code
         const byCode = new Map(state.products.map(p => [p.code, p]));
-        for (const p of productList) {
-          const existing = byCode.get(p.code);
-          byCode.set(p.code, { ...p, id: existing?.id || `temp-${p.code}` });
+        
+        // Update with imported data (this includes the real IDs from Supabase)
+        for (const p of importedRows) {
+          byCode.set(p.code, p);
         }
-        nextProducts = [...byCode.values()].sort((a, b) => {
+
+        const nextProducts = [...byCode.values()].sort((a, b) => {
           const na = (a.name || '').toUpperCase();
           const nb = (b.name || '').toUpperCase();
           return na < nb ? -1 : na > nb ? 1 : 0;
         });
+
+        // Save immediately to localStorage for maximum persistence
+        try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch (_) {}
+        
         console.log(`[Import] Estado actualizado: ${nextProducts.length} productos en store`);
         return { products: nextProducts };
       });
-
-      // Defer the heavy localStorage write off the main thread
-      scheduleSave(nextProducts);
 
       onProgress?.(100);
       return result;

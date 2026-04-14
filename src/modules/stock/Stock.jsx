@@ -96,7 +96,7 @@ const Stock = () => {
   const deferredSearch = useDeferredValue(searchInput);
   const isSearchStale = searchInput !== deferredSearch;
   const [onlyLowStock, setOnlyLowStock] = useState(false);
-  const [onlyNoPrecio, setOnlyNoPrecio] = useState(true);
+  const [onlyNoPrecio, setOnlyNoPrecio] = useState(false);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
