@@ -23,7 +23,7 @@ export async function generateQuotePDF({ cart, total, discount, discountPct, fin
   try {
     const logoData = await getLogoBase64('/logo.png');
     doc.addImage(logoData, 'PNG', 14, 12, 22, 22);
-  } catch (_) {
+  } catch {
     // logo failed to load — continue without it
   }
 

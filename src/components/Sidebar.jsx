@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -15,18 +15,14 @@ import { useProductStore } from '../store/productStore';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const products = useProductStore((state) => state.products);
-  const lowStockProducts = products.filter(p => {
+  const lowStockCount = useMemo(() => products.filter(p => {
     const stockVal = Number(p.stock) || 0;
     const minStockVal = Number(p.minStock) || 0;
-
     const pName = p.name ? p.name.toString().trim() : '';
     const pCode = p.code ? p.code.toString().trim() : '';
     if (!pName && !pCode) return false;
-
     return stockVal <= minStockVal;
-  });
-
-  const lowStockCount = lowStockProducts.length;
+  }).length, [products]);
 
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/' },

@@ -13,12 +13,14 @@ export const useStoreInitializer = () => {
   const initCaja = useCajaStore((state) => state.initCaja);
 
   useEffect(() => {
-    // Initialize all stores
+    // Initialize all stores — runs once on mount
+    // Zustand store methods are stable references; deps array is intentionally empty
     initAuth();
     initProducts();
     initCustomers();
     initSales();
     initCaja();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 };
 

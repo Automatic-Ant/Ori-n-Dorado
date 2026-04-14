@@ -6,7 +6,7 @@ let _lsTimer = null;
 function scheduleSave(products) {
   if (_lsTimer) clearTimeout(_lsTimer);
   _lsTimer = setTimeout(() => {
-    try { localStorage.setItem('orion_products', JSON.stringify(products)); } catch (_) {}
+    try { localStorage.setItem('orion_products', JSON.stringify(products)); } catch { /* localStorage quota exceeded — ignore */ }
   }, 300);
 }
 
@@ -101,8 +101,7 @@ export const useProductStore = create((set, get) => ({
           return na < nb ? -1 : na > nb ? 1 : 0;
         });
 
-        try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch (_) {}
-        console.log(`[Import] Estado actualizado: ${nextProducts.length} productos (${importedRows.length} con ID real de DB)`);
+        try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch { /* localStorage quota exceeded — ignore */ }
         return { products: nextProducts };
       });
 
@@ -130,7 +129,7 @@ export const useProductStore = create((set, get) => ({
         set((state) => {
           // Replace tempId item with the real one from DB
           const next = state.products.map(p => p.id === tempId ? saved : p);
-          try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
+          try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch { /* localStorage quota exceeded — ignore */ }
           return { products: next };
         });
       }
@@ -152,7 +151,7 @@ export const useProductStore = create((set, get) => ({
       return { products: nextProducts };
     });
     // Save immediately so a reload mid-flight sees the updated data
-    try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch (_) {}
+    try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch { /* localStorage quota exceeded — ignore */ }
 
     // 2. Sync to Supabase
     try {
@@ -160,14 +159,14 @@ export const useProductStore = create((set, get) => ({
       if (saved) {
         set((state) => {
           const confirmedList = state.products.map(p => p.id === id ? saved : p);
-          try { localStorage.setItem('orion_products', JSON.stringify(confirmedList)); } catch (_) {}
+          try { localStorage.setItem('orion_products', JSON.stringify(confirmedList)); } catch { /* localStorage quota exceeded — ignore */ }
           return { products: confirmedList };
         });
       }
     } catch (e) {
       console.error('Update Product Error, rolling back:', e);
       set({ products: previousProducts });
-      try { localStorage.setItem('orion_products', JSON.stringify(previousProducts)); } catch (_) {}
+      try { localStorage.setItem('orion_products', JSON.stringify(previousProducts)); } catch { /* localStorage quota exceeded — ignore */ }
       throw e;
     }
   },

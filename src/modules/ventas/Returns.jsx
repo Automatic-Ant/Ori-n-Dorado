@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Plus, Minus, Trash2, CheckCircle, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProductStore } from '../../store/productStore';
@@ -20,11 +20,9 @@ const Returns = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
-  const [searchResults, setSearchResults] = useState([]);
   const [returnItems, setReturnItems] = useState([]);
   const [discountPct, setDiscountPct] = useState(0);
   const [customerQuery, setCustomerQuery] = useState('');
-  const [foundCustomer, setFoundCustomer] = useState(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,25 +32,18 @@ const Returns = () => {
     searchRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (deferredSearch.trim().length >= 2) {
-      setSearchResults(products.filter((p) => matchProduct(p, deferredSearch)));
-    } else {
-      setSearchResults([]);
-    }
+  const searchResults = useMemo(() => {
+    if (deferredSearch.trim().length < 2) return [];
+    return products.filter((p) => matchProduct(p, deferredSearch));
   }, [deferredSearch, products]);
 
-  useEffect(() => {
-    if (customerQuery.length >= 2) {
-      const found = customers.find(
-        (c) =>
-          c.dni === customerQuery ||
-          c.name.toLowerCase().includes(customerQuery.toLowerCase())
-      );
-      setFoundCustomer(found || null);
-    } else {
-      setFoundCustomer(null);
-    }
+  const foundCustomer = useMemo(() => {
+    if (customerQuery.length < 2) return null;
+    return customers.find(
+      (c) =>
+        c.dni === customerQuery ||
+        c.name.toLowerCase().includes(customerQuery.toLowerCase())
+    ) || null;
   }, [customerQuery, customers]);
 
   const addToReturn = (product) => {
@@ -80,7 +71,6 @@ const Returns = () => {
     setReturnItems([]);
     setDiscountPct(0);
     setCustomerQuery('');
-    setFoundCustomer(null);
     setSearchTerm('');
     searchRef.current?.focus();
   };

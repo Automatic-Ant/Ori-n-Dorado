@@ -21,6 +21,26 @@ function canonicalCategory(cat) {
   return CATEGORY_CANONICAL[key] || cat;
 }
 
+function mapProduct(item) {
+  return {
+    id: item.id,
+    code: item.code,
+    name: item.name,
+    category: canonicalCategory(item.category),
+    stock: Number(item.stock),
+    codigoPrecio: Number(item.codigo_precio),
+    price: Number(item.price),
+    baseCode: Number(item.base_code),
+    minStock: Number(item.min_stock),
+    unit: item.unit,
+    marca: item.marca || '',
+    listPrice: Number(item.list_price) || 0,
+    parentProductId: item.parent_product_id || null,
+    unitsPerPackage: Number(item.units_per_package) || 1,
+    updatedAt: item.updated_at,
+  };
+}
+
 export const supabaseService = {
   // PRODUCTS
   async getAllProducts() {
@@ -47,26 +67,6 @@ export const supabaseService = {
     }
 
     return allRows.map(mapProduct);
-
-    function mapProduct(item) {
-      return {
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        category: canonicalCategory(item.category),
-        stock: Number(item.stock),
-        codigoPrecio: Number(item.codigo_precio),
-        price: Number(item.price),
-        baseCode: Number(item.base_code),
-        minStock: Number(item.min_stock),
-        unit: item.unit,
-        marca: item.marca || '',
-        listPrice: Number(item.list_price) || 0,
-        parentProductId: item.parent_product_id || null,
-        unitsPerPackage: Number(item.units_per_package) || 1,
-        updatedAt: item.updated_at,
-      };
-    }
   },
 
   async bulkAddProducts(products, onProgress) {
@@ -161,27 +161,11 @@ export const supabaseService = {
       await Promise.all(wave.map((chunk, j) => uploadChunk(chunk, i + j)));
     }
 
-    return { 
-      inserted, 
-      skipped, 
-      firstError, 
-      rows: allInsertedRows.map(item => ({
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        category: canonicalCategory(item.category),
-        stock: Number(item.stock),
-        codigoPrecio: Number(item.codigo_precio),
-        price: Number(item.price),
-        baseCode: Number(item.base_code),
-        minStock: Number(item.min_stock),
-        unit: item.unit,
-        marca: item.marca || '',
-        listPrice: Number(item.list_price) || 0,
-        parentProductId: item.parent_product_id || null,
-        unitsPerPackage: Number(item.units_per_package) || 1,
-        updatedAt: item.updated_at,
-      }))
+    return {
+      inserted,
+      skipped,
+      firstError,
+      rows: allInsertedRows.map(mapProduct)
     };
   },
 
@@ -209,67 +193,62 @@ export const supabaseService = {
       console.error('Error adding product to Supabase:', error);
       throw error;
     }
-    return data && data[0] ? data[0] : null;
+    return data && data[0] ? mapProduct(data[0]) : null;
   },
 
-  async updateProduct(id, productData, originalCode) {
-    const payload = {
-      code:              productData.code,
-      name:              productData.name,
-      category:          productData.category,
-      stock:             productData.stock,
-      codigo_precio:     productData.codigoPrecio,
-      price:             productData.price,
-      base_code:         productData.baseCode,
-      min_stock:         productData.minStock,
-      unit:              productData.unit,
-      marca:             productData.marca || '',
-      list_price:        productData.listPrice || 0,
-      parent_product_id: productData.parentProductId || null,
-      units_per_package: productData.unitsPerPackage || 1,
+  async updateProduct(id, updates) {
+    const payload = {};
+    const mapping = {
+      code:              'code',
+      name:              'name',
+      category:          'category',
+      stock:             'stock',
+      codigoPrecio:      'codigo_precio',
+      price:             'price',
+      baseCode:          'base_code',
+      minStock:          'min_stock',
+      unit:              'unit',
+      marca:             'marca',
+      listPrice:         'list_price',
+      parentProductId:   'parent_product_id',
+      unitsPerPackage:   'units_per_package'
     };
 
-    console.log('[Supabase] updateProduct → id:', id, '| code:', productData.code);
+    Object.keys(mapping).forEach(key => {
+      if (updates[key] !== undefined) {
+        const dbKey = mapping[key];
+        let val = updates[key];
 
-    // 1. Intentar por UUID
+        // Sanitize numeric fields
+        if (['stock', 'codigo_precio', 'price', 'base_code', 'min_stock', 'list_price', 'units_per_package'].includes(dbKey)) {
+          val = Number(val) || 0;
+        }
+
+        // Canonicalize category
+        if (dbKey === 'category') {
+          val = canonicalCategory(val);
+        }
+
+        payload[dbKey] = val;
+      }
+    });
+
+    if (Object.keys(payload).length === 0) return null;
+
     const { data, error } = await supabase
       .from('products')
       .update(payload)
       .eq('id', id)
-      .select('id');
-
-    console.log('[Supabase] update by id result → data:', data, '| error:', error);
+      .select();
 
     if (error) {
-      console.error('Error updating product by id:', error);
+      console.error('Error updating product in Supabase:', error);
       throw error;
     }
 
-    if (data && data.length > 0) {
-      console.log('[Supabase] update by id exitoso ✓');
-      return;
-    }
-
-    // 2. UUID no coincidió — fallback por código original
-    const codeToSearch = originalCode || productData.code;
-    console.warn(`[Supabase] UUID "${id}" no encontrado. Intentando por código "${codeToSearch}"...`);
-
-    const { data: data2, error: error2 } = await supabase
-      .from('products')
-      .update(payload)
-      .eq('code', codeToSearch)
-      .select('id');
-
-    if (error2) {
-      console.error('Error updating product by code:', error2);
-      throw error2;
-    }
-
-    if (!data2 || data2.length === 0) {
-      throw new Error(`No se encontró el producto con ID "${id}" ni código "${codeToSearch}" en la base de datos.`);
-    }
-    return data2[0];
+    return data && data.length > 0 ? mapProduct(data[0]) : null;
   },
+
 
   async updateProductStock(id, newStock) {
     const { error } = await supabase
@@ -379,10 +358,10 @@ export const supabaseService = {
     // but we use denormalized name/dni mostly.
     try {
       await supabase.from('sales').update({ customer_id: null }).eq('customer_id', id);
-    } catch (_) {}
+    } catch { /* column may not exist — ignore */ }
     try {
       await supabase.from('credit_notes').update({ customer_id: null }).eq('customer_id', id);
-    } catch (_) {}
+    } catch { /* column may not exist — ignore */ }
 
     const { error } = await supabase
       .from('customers')

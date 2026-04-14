@@ -25,7 +25,7 @@ export const useCustomerStore = create((set, get) => ({
             if (saved) {
               finalCustomers = [...finalCustomers, { ...saved, creditBalance: Number(saved.credit_balance || 0) }];
             }
-          } catch (e) { /* ignore duplicates */ }
+          } catch { /* ignore duplicates */ }
         }
 
         set({ customers: finalCustomers });
@@ -70,9 +70,22 @@ export const useCustomerStore = create((set, get) => ({
           localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
           return { customers: newCustomers };
         });
+      } else {
+        // Supabase returned null — roll back the optimistic add
+        set((state) => {
+          const rolled = state.customers.filter((c) => c.id !== tempId);
+          localStorage.setItem('orion_customers', JSON.stringify(rolled));
+          return { customers: rolled };
+        });
       }
     } catch (e) {
       console.error('Error adding customer to Supabase:', e);
+      // Roll back the optimistic add so state stays consistent
+      set((state) => {
+        const rolled = state.customers.filter((c) => c.id !== tempId);
+        localStorage.setItem('orion_customers', JSON.stringify(rolled));
+        return { customers: rolled };
+      });
     }
   },
 

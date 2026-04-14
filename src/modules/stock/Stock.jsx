@@ -95,8 +95,8 @@ const Stock = () => {
   const [searchInput, setSearchInput] = useState('');
   const deferredSearch = useDeferredValue(searchInput);
   const isSearchStale = searchInput !== deferredSearch;
-  const [onlyLowStock, setOnlyLowStock] = useState(false);
-  const [onlyNoPrecio, setOnlyNoPrecio] = useState(false);
+  const [onlyLowStock, setOnlyLowStock] = useState(() => !!location.state?.filterLowStock);
+  const [onlyNoPrecio, setOnlyNoPrecio] = useState(true);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
@@ -109,17 +109,8 @@ const Stock = () => {
   });
 
   useEffect(() => {
-    if (location.state?.filterLowStock) {
-      setOnlyLowStock(true);
-    }
-  }, [location.state]);
-
-  useEffect(() => {
     localStorage.setItem('orion_global_base_code', globalBaseCode);
   }, [globalBaseCode]);
-
-  // Reset page when any filter (including deferred search) settles
-  useEffect(() => { setCurrentPage(1); }, [searchInput, filterMarca, filterCategory, filterStock, onlyLowStock, onlyNoPrecio]);
 
   // Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -214,7 +205,7 @@ const Stock = () => {
     [filteredProducts, safePage]
   );
 
-  const handleSearchChange = useCallback((e) => { setSearchInput(e.target.value); }, []);
+  const handleSearchChange = useCallback((e) => { setSearchInput(e.target.value); setCurrentPage(1); }, []);
 
   // Stable callbacks for memoized ProductRow — must not change on every render
   const handleEditProduct = useCallback((product) => {
@@ -317,14 +308,13 @@ const Stock = () => {
         await addProduct(data);
       }
       setIsModalOpen(false);
-    } catch (err) {
+    } catch {
       alert('Error al guardar en Supabase. Revisá la consola para más detalles.');
     }
   };
 
   const handleExecuteDelete = () => {
     if (productToDelete) {
-      console.log('UI: Deleting product:', productToDelete.id, productToDelete.code);
       deleteProduct(productToDelete.id, productToDelete.code);
       setIsDeleteModalOpen(false);
       setProductToDelete(null);
@@ -442,7 +432,7 @@ const Stock = () => {
 
           <div className="filter-select-wrap card glass">
             <TrendingUp size={15} className="filter-icon" />
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}>
               <option value="name">Ordenar por nombre</option>
               <option value="recent">Más recientes</option>
             </select>

@@ -4,7 +4,7 @@ import { supabaseService } from '../services/supabaseService';
 
 const STORAGE_KEY = 'orion_caja_movements';
 
-export const useCajaStore = create((set, get) => ({
+export const useCajaStore = create((set) => ({
   movements: [],
 
   initCaja: async () => {

@@ -117,7 +117,7 @@ const Customers = () => {
     }
     
     addCreditNote({
-      customer: selectedCustomerForCredit.name,
+      customer_name: selectedCustomerForCredit.name,
       product: creditFormData.product,
       quantity: creditFormData.quantity,
       amount: creditFormData.amount,

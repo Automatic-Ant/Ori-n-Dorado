@@ -39,8 +39,8 @@ export const useAuthStore = create((set) => ({
       set({ isAuthenticated: false, user: null, loading: false });
     }
 
-    // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    // Listen for auth changes — store the unsubscribe handle to avoid leaking listeners
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -53,6 +53,9 @@ export const useAuthStore = create((set) => ({
         set({ isAuthenticated: false, user: null });
       }
     });
+
+    // Expose cleanup so callers can unsubscribe if needed
+    return () => subscription.unsubscribe();
   },
 
   login: async (username, password) => {
@@ -67,7 +70,7 @@ export const useAuthStore = create((set) => ({
         setTimeout(() => reject(new Error('timeout')), 20000)
       );
 
-      const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
+      const { error } = await Promise.race([loginPromise, timeoutPromise]);
 
       if (error) {
         set({ error: 'Usuario o contraseña incorrectos', loading: false });

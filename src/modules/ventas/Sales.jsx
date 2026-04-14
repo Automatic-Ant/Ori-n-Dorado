@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Search,
   Plus,
@@ -38,16 +38,15 @@ const PAYMENT_METHODS = [
   { key: 'transferencia', label: 'Transf.', Icon: ArrowRightLeft },
 ];
 
-const QuantityInput = ({ item, products, handleSetQuantity }) => {
+const QuantityInput = ({ item, handleSetQuantity }) => {
   const [localValue, setLocalValue] = React.useState(item.quantity.toString());
+  const inputRef = React.useRef(null);
 
   React.useEffect(() => {
     if (document.activeElement !== inputRef.current) {
         setLocalValue(item.quantity.toString());
     }
   }, [item.quantity]);
-
-  const inputRef = React.useRef(null);
 
   const handleChange = (e) => {
     let val = e.target.value.replace(',', '.');
@@ -99,7 +98,6 @@ const Sales = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
-  const [searchResults, setSearchResults] = useState([]);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [applyCredit, setApplyCredit] = useState(false);
@@ -120,13 +118,9 @@ const Sales = () => {
   );
   const availableCredit = matchedCustomer?.creditBalance || 0;
 
-  useEffect(() => {
-    if (availableCredit === 0) setApplyCredit(false);
-  }, [availableCredit]);
-
   // ── Calculation ──────────────────────────────────────────────
-  // 1. Apply credit first
-  const creditUsed = applyCredit ? Math.min(availableCredit, total) : 0;
+  // 1. Apply credit first — guard: credit can only be applied when there's a balance
+  const creditUsed = (applyCredit && availableCredit > 0) ? Math.min(availableCredit, total) : 0;
   const afterCredit = total - creditUsed;
 
   // 2. Split base amounts (before discount)
@@ -185,13 +179,9 @@ const Sales = () => {
   };
 
   // ── Search ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (deferredSearch.trim().length >= 2) {
-      const results = products.filter(p => matchProduct(p, deferredSearch));
-      setSearchResults(results);
-    } else {
-      setSearchResults([]);
-    }
+  const searchResults = useMemo(() => {
+    if (deferredSearch.trim().length < 2) return [];
+    return products.filter(p => matchProduct(p, deferredSearch));
   }, [deferredSearch, products]);
 
   const handleAddToCart = (product) => {

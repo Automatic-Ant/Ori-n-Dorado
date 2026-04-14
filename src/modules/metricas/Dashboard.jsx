@@ -13,7 +13,6 @@ import {
   Download
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { useProductStore } from '../../store/productStore';
 import { useSaleStore } from '../../store/saleStore';
@@ -23,7 +22,6 @@ import Modal from '../../components/Modal';
 import { useCajaStore } from '../../store/cajaStore';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const sales = useSaleStore((state) => state.sales);
   const cancelSale = useSaleStore((state) => state.cancelSale);
   const increaseStock = useProductStore((state) => state.increaseStock);
@@ -45,7 +43,6 @@ const Dashboard = () => {
 
   const handleConfirmCancel = async () => {
     if (saleToCancel) {
-      console.log("Confirmación recibida para cancelar:", saleToCancel.id);
       await cancelSale(saleToCancel.id, increaseStock);
       setIsCancelModalOpen(false);
       setSaleToCancel(null);
@@ -116,11 +113,10 @@ const Dashboard = () => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itemRows),   'Detalle Productos');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cajaRows),   'Caja');
 
-    const monthLabel = new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
     XLSX.writeFile(wb, `backup_${prefix}.xlsx`);
   };
 
-  const { totalEfectivo, totalDigital, todayCompletedSales, todayCaja } = useMemo(() => {
+  const { totalEfectivo, totalDigital, todayCaja } = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
     
     const todaySales = sales.filter(
@@ -142,7 +138,6 @@ const Dashboard = () => {
     return {
       totalEfectivo: efectivo,
       totalDigital: digital,
-      todayCompletedSales: todaySales,
       todayCaja: todayCajaMovements
     };
   }, [sales, cajaMovements]);
