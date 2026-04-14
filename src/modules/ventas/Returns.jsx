@@ -128,10 +128,13 @@ const Returns = () => {
       resetForm();
     }, 2500);
 
-    // 3. Sync stock to Supabase in background (fire-and-forget)
-    for (const item of returnItems) {
-      supabaseService.incrementStock(item.id, item.quantity)
-        .catch((e) => console.error('Error syncing stock return to Supabase:', e));
+    // 3. Parallel sync to Supabase
+    try {
+      await Promise.all(
+        returnItems.map(item => supabaseService.incrementStock(item.id, item.quantity))
+      );
+    } catch (e) {
+      console.error("Error syncing returns to Supabase:", e);
     }
   };
 

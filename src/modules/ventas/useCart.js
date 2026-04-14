@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { calculateCartTotal } from '../../utils/calculateTotals';
 
 export const useCart = () => {
@@ -78,7 +78,7 @@ export const useCart = () => {
     setCustomerDni('');
   };
 
-  const total = calculateCartTotal(cart);
+  const total = useMemo(() => calculateCartTotal(cart), [cart]);
 
   return {
     cart,

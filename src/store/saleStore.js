@@ -107,11 +107,12 @@ export const useSaleStore = create((set, get) => ({
       // 1. Return stock locally
       increaseStockFn(canceledSale.items);
       
-      // 2. Sync stock to Supabase
+      // 2. Sync to Supabase
       try {
-        for (const item of canceledSale.items) {
-           await supabaseService.incrementStock(item.id, item.quantity);
-        }
+        await Promise.all([
+          supabaseService.updateSaleStatus(saleId, 'cancelado'),
+          ...canceledSale.items.map(item => supabaseService.incrementStock(item.id, item.quantity))
+        ]);
       } catch (e) {
         console.error("Error syncing cancellation to Supabase:", e);
       }

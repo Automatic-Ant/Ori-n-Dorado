@@ -12,7 +12,7 @@ import {
   MinusCircle,
   Download
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { useProductStore } from '../../store/productStore';
@@ -120,23 +120,32 @@ const Dashboard = () => {
     XLSX.writeFile(wb, `backup_${prefix}.xlsx`);
   };
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const { totalEfectivo, totalDigital, todayCompletedSales, todayCaja } = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    
+    const todaySales = sales.filter(
+      (s) => s.status !== 'cancelado' && s.date && s.date.startsWith(todayStr)
+    );
 
-  const todayCompletedSales = sales.filter(
-    (s) => s.status !== 'cancelado' && s.date && s.date.startsWith(todayStr)
-  );
+    const todayCajaMovements = cajaMovements.filter((m) => m.date && m.date.startsWith(todayStr));
+    const ingresos = todayCajaMovements.filter((m) => m.type === 'ingreso').reduce((sum, m) => sum + m.amount, 0);
+    const egresos  = todayCajaMovements.filter((m) => m.type === 'egreso').reduce((sum, m) => sum + m.amount, 0);
 
-  const todayCaja = cajaMovements.filter((m) => m.date && m.date.startsWith(todayStr));
-  const cajaIngresos = todayCaja.filter((m) => m.type === 'ingreso').reduce((sum, m) => sum + m.amount, 0);
-  const cajaEgresos  = todayCaja.filter((m) => m.type === 'egreso').reduce((sum, m) => sum + m.amount, 0);
+    const efectivo = todaySales
+      .filter((s) => s.paymentMethod && s.paymentMethod.includes('efectivo'))
+      .reduce((sum, s) => sum + (s.total || 0), 0) + ingresos - egresos;
 
-  const totalEfectivo = todayCompletedSales
-    .filter((s) => s.paymentMethod && s.paymentMethod.includes('efectivo'))
-    .reduce((sum, s) => sum + (s.total || 0), 0) + cajaIngresos - cajaEgresos;
+    const digital = todaySales
+      .filter((s) => !s.paymentMethod || !s.paymentMethod.includes('efectivo'))
+      .reduce((sum, s) => sum + (s.total || 0), 0);
 
-  const totalDigital = todayCompletedSales
-    .filter((s) => !s.paymentMethod || !s.paymentMethod.includes('efectivo'))
-    .reduce((sum, s) => sum + (s.total || 0), 0);
+    return {
+      totalEfectivo: efectivo,
+      totalDigital: digital,
+      todayCompletedSales: todaySales,
+      todayCaja: todayCajaMovements
+    };
+  }, [sales, cajaMovements]);
 
   return (
     <div className="dashboard">

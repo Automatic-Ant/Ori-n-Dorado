@@ -160,7 +160,7 @@ export const supabaseService = {
   },
 
   async addProduct(product) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .insert([{
         code: product.code,
@@ -174,12 +174,14 @@ export const supabaseService = {
         unit: product.unit,
         marca: product.marca || '',
         list_price: product.listPrice || 0
-      }]);
+      }])
+      .select();
 
     if (error) {
       console.error('Error adding product to Supabase:', error);
       throw error;
     }
+    return data && data[0] ? data[0] : null;
   },
 
   async updateProduct(id, productData, originalCode) {
@@ -236,6 +238,7 @@ export const supabaseService = {
     if (!data2 || data2.length === 0) {
       throw new Error(`No se encontró el producto con ID "${id}" ni código "${codeToSearch}" en la base de datos.`);
     }
+    return data2[0];
   },
 
   async updateProductStock(id, newStock) {
@@ -341,9 +344,14 @@ export const supabaseService = {
   },
 
   async deleteCustomer(id) {
-    // Null out customer references first to avoid FK constraint violations
-    await supabase.from('sales').update({ customer_id: null }).eq('customer_id', id);
-    await supabase.from('credit_notes').update({ customer_id: null }).eq('customer_id', id);
+    // Note: If sales/credit_notes don't have customer_id column, these might fail
+    // but we use denormalized name/dni mostly.
+    try {
+      await supabase.from('sales').update({ customer_id: null }).eq('customer_id', id);
+    } catch (_) {}
+    try {
+      await supabase.from('credit_notes').update({ customer_id: null }).eq('customer_id', id);
+    } catch (_) {}
 
     const { error } = await supabase
       .from('customers')
@@ -467,6 +475,19 @@ export const supabaseService = {
                     .eq('id', item.id);
             }
         }
+    }
+  },
+
+  async updateSaleStatus(saleId, status) {
+    // external_id is the #123 format used in the UI
+    const { error } = await supabase
+      .from('sales')
+      .update({ status })
+      .eq('external_id', saleId);
+
+    if (error) {
+      // Fallback by internal id if saleId is a UUID
+      await supabase.from('sales').update({ status }).eq('id', saleId);
     }
   },
 

@@ -115,15 +115,20 @@ export const useProductStore = create((set, get) => ({
 
     // Sync to Supabase
     try {
-      await supabaseService.addProduct(product);
-      // Re-fetch to get the proper UUID from DB
-      const updatedList = await supabaseService.getAllProducts();
-      if (updatedList) {
-        set({ products: updatedList });
-        localStorage.setItem('orion_products', JSON.stringify(updatedList));
+      const saved = await supabaseService.addProduct(product);
+      if (saved) {
+        set((state) => {
+          // Replace tempId item with the real one from DB
+          const next = state.products.map(p => p.id === tempId ? saved : p);
+          try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
+          return { products: next };
+        });
       }
     } catch (error) {
        console.error('Error adding product:', error);
+       // Rollback if needed, but since it's a new product, we can just leave it as temp for now 
+       // or remove it. Let's remove it if it failed to persist.
+       set(state => ({ products: state.products.filter(p => p.id !== tempId) }));
     }
   },
 
@@ -141,12 +146,13 @@ export const useProductStore = create((set, get) => ({
 
     // 2. Sync to Supabase
     try {
-      await supabaseService.updateProduct(id, updatedProduct, originalCode);
-      // Re-fetch from Supabase to confirm the persisted state (same as addProduct)
-      const confirmed = await supabaseService.getAllProducts();
-      if (confirmed) {
-        set({ products: confirmed });
-        localStorage.setItem('orion_products', JSON.stringify(confirmed));
+      const saved = await supabaseService.updateProduct(id, updatedProduct, originalCode);
+      if (saved) {
+        set((state) => {
+          const confirmedList = state.products.map(p => p.id === id ? saved : p);
+          try { localStorage.setItem('orion_products', JSON.stringify(confirmedList)); } catch (_) {}
+          return { products: confirmedList };
+        });
       }
     } catch (e) {
       console.error('Update Product Error, rolling back:', e);
