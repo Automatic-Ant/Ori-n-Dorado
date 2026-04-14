@@ -256,14 +256,11 @@ export const useProductStore = create((set, get) => ({
       let nextProducts = [...state.products];
       
       if (eventType === 'INSERT') {
-        // Only add if not already present (avoid duplicates from our own optimistic adds)
         if (!nextProducts.some(p => p.id === newItem.id)) {
-          const mapped = supabaseService.mapProduct(newItem);
-          nextProducts = [mapped, ...nextProducts];
+          nextProducts = [newItem, ...nextProducts];
         }
       } else if (eventType === 'UPDATE') {
-        const mapped = supabaseService.mapProduct(newItem);
-        nextProducts = nextProducts.map(p => p.id === mapped.id ? { ...p, ...mapped } : p);
+        nextProducts = nextProducts.map(p => p.id === newItem.id ? { ...p, ...newItem } : p);
       } else if (eventType === 'DELETE') {
         nextProducts = nextProducts.filter(p => p.id !== oldItem.id);
       }

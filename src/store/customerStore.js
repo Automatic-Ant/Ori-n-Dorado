@@ -160,12 +160,10 @@ export const useCustomerStore = create((set, get) => ({
       let next = [...state.customers];
       if (eventType === 'INSERT') {
         if (!next.some(c => c.id === newItem.id)) {
-          const mapped = { ...newItem, creditBalance: Number(newItem.credit_balance || 0) };
-          next = [...next, mapped];
+          next = [...next, newItem];
         }
       } else if (eventType === 'UPDATE') {
-        const mapped = { ...newItem, creditBalance: Number(newItem.credit_balance || 0) };
-        next = next.map(c => c.id === mapped.id ? { ...c, ...mapped } : c);
+        next = next.map(c => c.id === newItem.id ? { ...c, ...newItem } : c);
       } else if (eventType === 'DELETE') {
         next = next.filter(c => c.id !== oldItem.id);
       }
