@@ -50,20 +50,22 @@ export const useProductStore = create((set, get) => ({
 
       const liveProducts = await supabaseService.getAllProducts();
 
-      // If a bulk import ran while we were waiting for Supabase,
-      // don't overwrite — the import already set the correct state.
       if (_bulkImporting) {
         set({ isLoadingProducts: false });
         return;
       }
 
-      if (liveProducts) {
-        // Supabase is always the source of truth
+      if (liveProducts && liveProducts.length > 0) {
+        // Supabase is always the source of truth. 
+        // We set the state and overwrite local cache immediately.
         set({ products: liveProducts });
         localStorage.setItem('orion_products', JSON.stringify(liveProducts));
+        console.log(`[Init] ${liveProducts.length} productos cargados desde Supabase.`);
       } else {
-        // Supabase unreachable → fall back to local cache
-        if (localProducts.length) set({ products: localProducts });
+        // Si Supabase devuelve vacío o falla, intentamos usar lo local como último recurso
+        if (localProducts.length) {
+          set({ products: localProducts });
+        }
       }
     } catch (error) {
       console.error('Failed to init products:', error);
