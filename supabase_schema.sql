@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS public.products (
 -- Migration: add list_price column if it doesn't exist
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS list_price NUMERIC DEFAULT 0;
 
+-- Migration: add product presentation/packaging columns
+-- parent_product_id: if set, this product is a package/presentation of the parent
+-- units_per_package: how many units of the parent's stock 1 unit of this product represents
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS parent_product_id UUID REFERENCES public.products(id);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS units_per_package NUMERIC DEFAULT 1;
+
+-- Migration: snapshot parent info in sale_items so cancellations restore stock correctly
+ALTER TABLE public.sale_items ADD COLUMN IF NOT EXISTS parent_product_id UUID;
+ALTER TABLE public.sale_items ADD COLUMN IF NOT EXISTS units_per_package NUMERIC DEFAULT 1;
+
 -- 3. CUSTOMERS TABLE
 CREATE TABLE IF NOT EXISTS public.customers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

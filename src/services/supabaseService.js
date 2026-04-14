@@ -62,6 +62,8 @@ export const supabaseService = {
         unit: item.unit,
         marca: item.marca || '',
         listPrice: Number(item.list_price) || 0,
+        parentProductId: item.parent_product_id || null,
+        unitsPerPackage: Number(item.units_per_package) || 1,
       };
     }
   },
@@ -173,7 +175,9 @@ export const supabaseService = {
         min_stock: product.minStock,
         unit: product.unit,
         marca: product.marca || '',
-        list_price: product.listPrice || 0
+        list_price: product.listPrice || 0,
+        parent_product_id: product.parentProductId || null,
+        units_per_package: product.unitsPerPackage || 1,
       }])
       .select();
 
@@ -186,17 +190,19 @@ export const supabaseService = {
 
   async updateProduct(id, productData, originalCode) {
     const payload = {
-      code:          productData.code,
-      name:          productData.name,
-      category:      productData.category,
-      stock:         productData.stock,
-      codigo_precio: productData.codigoPrecio,
-      price:         productData.price,
-      base_code:     productData.baseCode,
-      min_stock:     productData.minStock,
-      unit:          productData.unit,
-      marca:         productData.marca || '',
-      list_price:    productData.listPrice || 0,
+      code:              productData.code,
+      name:              productData.name,
+      category:          productData.category,
+      stock:             productData.stock,
+      codigo_precio:     productData.codigoPrecio,
+      price:             productData.price,
+      base_code:         productData.baseCode,
+      min_stock:         productData.minStock,
+      unit:              productData.unit,
+      marca:             productData.marca || '',
+      list_price:        productData.listPrice || 0,
+      parent_product_id: productData.parentProductId || null,
+      units_per_package: productData.unitsPerPackage || 1,
     };
 
     console.log('[Supabase] updateProduct → id:', id, '| code:', productData.code);
@@ -405,6 +411,8 @@ export const supabaseService = {
           quantity: Number(item.quantity),
           price: Number(item.price),
           subtotal: Number(item.subtotal),
+          parentProductId: item.parent_product_id || null,
+          unitsPerPackage: Number(item.units_per_package) || 1,
         })),
       };
     }
@@ -437,6 +445,7 @@ export const supabaseService = {
     const saleId = saleRecord[0].id;
 
     // 2. Insert Sale Items (original prices — total reflects actual charged amount)
+    // Snapshot parent_product_id and units_per_package so cancellations can restore stock correctly
     const saleItemsList = sale.items.map(item => ({
       sale_id: saleId,
       product_id: item.id,
@@ -444,7 +453,9 @@ export const supabaseService = {
       product_name: item.name,
       quantity: item.quantity,
       price: item.price,
-      subtotal: item.price * item.quantity
+      subtotal: item.price * item.quantity,
+      parent_product_id: item.parentProductId || null,
+      units_per_package: item.unitsPerPackage || 1,
     }));
 
     const { error: itemsError } = await supabase
@@ -455,25 +466,28 @@ export const supabaseService = {
 
 
     // 3. Update stock of products
+    // For package products (parentProductId set), decrement parent's stock by qty * unitsPerPackage
     for (const item of sale.items) {
+        const targetId = item.parentProductId || item.id;
+        const qty = item.quantity * (item.unitsPerPackage || 1);
+
         const { error: stockError } = await supabase.rpc('decrement_stock', {
-            product_id: item.id,
-            qty: item.quantity
+            product_id: targetId,
+            qty,
         });
-        
-        // If RPC doesn't exist yet, we'll manually update for now
+
         if (stockError) {
             const { data: currentProduct } = await supabase
                 .from('products')
                 .select('stock')
-                .eq('id', item.id)
+                .eq('id', targetId)
                 .single();
-            
+
             if (currentProduct) {
                 await supabase
                     .from('products')
-                    .update({ stock: currentProduct.stock - item.quantity })
-                    .eq('id', item.id);
+                    .update({ stock: currentProduct.stock - qty })
+                    .eq('id', targetId);
             }
         }
     }

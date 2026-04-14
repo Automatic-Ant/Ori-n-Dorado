@@ -22,13 +22,26 @@ import Modal from '../../components/Modal';
 import { formatCurrency } from '../../utils/formatCurrency';
 import ImportExcelModal from './ImportExcelModal';
 
-const ProductRow = memo(({ product, isAdmin, onEdit, onDelete }) => {
-  const isLowStock = Number(product.stock) <= Number(product.minStock);
+const ProductRow = memo(({ product, isAdmin, onEdit, onDelete, parentProduct }) => {
+  const isPackage = !!product.parentProductId;
+  // For package products, show available boxes based on parent stock
+  const availableQty = isPackage && parentProduct
+    ? Math.floor(parentProduct.stock / (product.unitsPerPackage || 1))
+    : Number(product.stock);
+  const isLowStock = isPackage
+    ? availableQty <= Number(product.minStock)
+    : Number(product.stock) <= Number(product.minStock);
+
   return (
-    <tr>
+    <tr className={isPackage ? 'package-row' : ''}>
       <td><span className="code-badge">{product.code}</span></td>
       <td>
         <div className="prod-name-cell">
+          {isPackage && (
+            <span className="package-badge" title={`Presentación de: ${parentProduct?.name || 'producto base'} · ${product.unitsPerPackage} u/caja`}>
+              <Package size={11} /> ×{product.unitsPerPackage}
+            </span>
+          )}
           {product.name}
           {isLowStock && (
             <span className="low-stock-alert">
@@ -42,9 +55,15 @@ const ProductRow = memo(({ product, isAdmin, onEdit, onDelete }) => {
       <td className="list-price-cell">{product.listPrice ? formatCurrency(product.listPrice) : '-'}</td>
       <td className="price-cell">{formatCurrency(product.price)}</td>
       <td>
-        <span className={`stock-count ${isLowStock ? 'critical' : ''}`}>
-          {product.stock}
-        </span>
+        {isPackage ? (
+          <span className={`stock-count ${isLowStock ? 'critical' : ''}`} title={`Stock base: ${parentProduct?.stock ?? '?'} unidades`}>
+            {availableQty} <span className="stock-unit-hint">cajas</span>
+          </span>
+        ) : (
+          <span className={`stock-count ${isLowStock ? 'critical' : ''}`}>
+            {product.stock}
+          </span>
+        )}
       </td>
       <td>{product.unit}</td>
       <td>
@@ -107,6 +126,7 @@ const Stock = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [isPackageProduct, setIsPackageProduct] = useState(false);
   
   const [formData, setFormData] = useState({
     code: '',
@@ -118,7 +138,9 @@ const Stock = () => {
     minStock: '',
     unit: 'unidad',
     marca: '',
-    listPrice: ''
+    listPrice: '',
+    parentProductId: '',
+    unitsPerPackage: 1,
   });
 
   const stockStats = useMemo(() => {
@@ -184,6 +206,7 @@ const Stock = () => {
   // Stable callbacks for memoized ProductRow — must not change on every render
   const handleEditProduct = useCallback((product) => {
     setEditingProduct(product);
+    setIsPackageProduct(!!product.parentProductId);
     setFormData({
       name: product.name ?? '',
       code: product.code ?? '',
@@ -194,7 +217,9 @@ const Stock = () => {
       minStock: product.minStock ?? 0,
       unit: product.unit || 'unidad',
       marca: product.marca ?? '',
-      listPrice: product.listPrice ?? ''
+      listPrice: product.listPrice ?? '',
+      parentProductId: product.parentProductId ?? '',
+      unitsPerPackage: product.unitsPerPackage ?? 1,
     });
     setIsModalOpen(true);
   }, []);
@@ -211,6 +236,7 @@ const Stock = () => {
   const handleOpenModal = (product = null) => {
     if (product) {
       setEditingProduct(product);
+      setIsPackageProduct(!!product.parentProductId);
       setFormData({
         name: product.name ?? '',
         code: product.code ?? '',
@@ -221,10 +247,13 @@ const Stock = () => {
         minStock: product.minStock ?? 0,
         unit: product.unit || 'unidad',
         marca: product.marca ?? '',
-        listPrice: product.listPrice ?? ''
+        listPrice: product.listPrice ?? '',
+        parentProductId: product.parentProductId ?? '',
+        unitsPerPackage: product.unitsPerPackage ?? 1,
       });
     } else {
       setEditingProduct(null);
+      setIsPackageProduct(false);
       setFormData({
         code: '',
         name: '',
@@ -235,7 +264,9 @@ const Stock = () => {
         minStock: '',
         unit: 'unidad',
         marca: '',
-        listPrice: ''
+        listPrice: '',
+        parentProductId: '',
+        unitsPerPackage: 1,
       });
     }
     setIsModalOpen(true);
@@ -257,9 +288,12 @@ const Stock = () => {
       codigoPrecio: finalCodigoPrecio,
       baseCode: finalBaseCode,
       price: finalCodigoPrecio * finalBaseCode,
-      stock: Number(formData.stock) || 0,
+      // Package products don't have their own stock — the parent holds it
+      stock: isPackageProduct ? 0 : (Number(formData.stock) || 0),
       minStock: Number(formData.minStock) || 0,
-      listPrice: parseFloat(formData.listPrice) || 0
+      listPrice: parseFloat(formData.listPrice) || 0,
+      parentProductId: formData.parentProductId || null,
+      unitsPerPackage: isPackageProduct ? (Number(formData.unitsPerPackage) || 1) : 1,
     };
 
     try {
@@ -442,6 +476,7 @@ const Stock = () => {
                 isAdmin={isAdmin}
                 onEdit={handleEditProduct}
                 onDelete={handleDeleteProduct}
+                parentProduct={product.parentProductId ? products.find(p => p.id === product.parentProductId) : null}
               />
             ))}
           </tbody>
@@ -503,6 +538,68 @@ const Stock = () => {
               <label>Código</label>
               <input type="text" name="code" required value={formData.code} onChange={handleInputChange} />
             </div>
+          </div>
+
+          <div className="form-group package-section">
+            <label className="package-toggle-label">
+              <input
+                type="checkbox"
+                checked={isPackageProduct}
+                onChange={(e) => {
+                  setIsPackageProduct(e.target.checked);
+                  if (!e.target.checked) {
+                    setFormData(prev => ({ ...prev, parentProductId: '', unitsPerPackage: 1 }));
+                  }
+                }}
+              />
+              Es una presentación de otro producto (ej: caja ×500)
+            </label>
+
+            {isPackageProduct && (
+              <div className="package-fields">
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label>Producto base</label>
+                    <select
+                      value={formData.parentProductId}
+                      onChange={(e) => setFormData(prev => ({ ...prev, parentProductId: e.target.value }))}
+                      required
+                    >
+                      <option value="">— Seleccioná el producto base —</option>
+                      {products
+                        .filter(p => !p.parentProductId && p.id !== editingProduct?.id)
+                        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+                        .map(p => (
+                          <option key={p.id} value={p.id}>
+                            [{p.code}] {p.name}
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Unidades por caja / paquete</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={formData.unitsPerPackage}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unitsPerPackage: Number(e.target.value) || 1 }))}
+                    />
+                  </div>
+                </div>
+                {formData.parentProductId && (() => {
+                  const parent = products.find(p => p.id === formData.parentProductId);
+                  if (!parent) return null;
+                  const available = Math.floor(parent.stock / (formData.unitsPerPackage || 1));
+                  return (
+                    <p className="package-stock-hint">
+                      Stock base: <strong>{parent.stock}</strong> unidades → <strong>{available}</strong> {formData.unitsPerPackage > 1 ? `cajas de ${formData.unitsPerPackage}` : 'unidades'} disponibles
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           <div className="form-grid-2">
@@ -1067,6 +1164,81 @@ const Stock = () => {
         .page-btn:disabled {
           opacity: 0.3;
           cursor: default;
+        }
+
+        .package-row td {
+          background: rgba(212, 175, 55, 0.02);
+        }
+
+        .package-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.2rem;
+          background: rgba(212, 175, 55, 0.12);
+          color: var(--primary-gold);
+          font-size: 0.68rem;
+          font-weight: 700;
+          padding: 0.15rem 0.45rem;
+          border-radius: 4px;
+          border: 1px solid rgba(212, 175, 55, 0.25);
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .stock-unit-hint {
+          font-size: 0.7rem;
+          font-weight: 400;
+          color: var(--text-secondary);
+          margin-left: 0.2rem;
+        }
+
+        .package-section {
+          border: 1px solid rgba(212, 175, 55, 0.2);
+          border-radius: 10px;
+          padding: 1rem;
+          background: rgba(212, 175, 55, 0.03);
+        }
+
+        .package-toggle-label {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          font-size: 0.88rem;
+          color: var(--text-secondary);
+          cursor: pointer;
+          user-select: none;
+        }
+
+        .package-toggle-label input[type="checkbox"] {
+          accent-color: var(--primary-gold);
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+        }
+
+        .package-fields {
+          margin-top: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .package-stock-hint {
+          font-size: 0.82rem;
+          color: var(--text-secondary);
+          background: rgba(255,255,255,0.03);
+          border-radius: 8px;
+          padding: 0.5rem 0.75rem;
+          margin: 0;
+        }
+
+        .package-stock-hint strong {
+          color: var(--primary-gold);
+        }
+
+        .no-precio-filter {
+          height: 42px;
+          border-radius: 10px;
         }
 
         @media (max-width: 768px) {

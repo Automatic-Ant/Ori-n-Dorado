@@ -111,7 +111,12 @@ export const useSaleStore = create((set, get) => ({
       try {
         await Promise.all([
           supabaseService.updateSaleStatus(saleId, 'cancelado'),
-          ...canceledSale.items.map(item => supabaseService.incrementStock(item.id, item.quantity))
+          ...canceledSale.items.map(item => {
+            // If this item was a package product, restore to the parent's stock
+            const targetId = item.parentProductId || item.id;
+            const qty = item.quantity * (item.unitsPerPackage || 1);
+            return supabaseService.incrementStock(targetId, qty);
+          })
         ]);
       } catch (e) {
         console.error("Error syncing cancellation to Supabase:", e);

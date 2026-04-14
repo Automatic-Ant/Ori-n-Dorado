@@ -1,15 +1,28 @@
 import { useState, useMemo } from 'react';
 import { calculateCartTotal } from '../../utils/calculateTotals';
+import { useProductStore } from '../../store/productStore';
 
 export const useCart = () => {
   const [cart, setCart] = useState([]);
   const [customerDni, setCustomerDni] = useState('');
+  const products = useProductStore((state) => state.products);
+
+  // For package products, effective stock = floor(parent.stock / unitsPerPackage)
+  const getEffectiveStock = (product) => {
+    if (product.parentProductId) {
+      const parent = products.find(p => p.id === product.parentProductId);
+      if (parent) return Math.floor(parent.stock / (product.unitsPerPackage || 1));
+      return 0;
+    }
+    return product.stock;
+  };
 
   const addToCart = (product, setError) => {
     const existing = cart.find(item => item.id === product.id);
     const currentQtyInCart = existing ? existing.quantity : 0;
+    const effectiveStock = getEffectiveStock(product);
 
-    if (product.stock <= currentQtyInCart) {
+    if (effectiveStock <= currentQtyInCart) {
       setError(`Stock insuficiente para ${product.name}`);
       setTimeout(() => setError(null), 3000);
       return false;
@@ -27,8 +40,9 @@ export const useCart = () => {
 
   const updateQuantity = (id, delta, product, setError) => {
     const itemInCart = cart.find(item => item.id === id);
+    const effectiveStock = getEffectiveStock(product);
 
-    if (delta > 0 && itemInCart.quantity >= product.stock) {
+    if (delta > 0 && itemInCart.quantity >= effectiveStock) {
       setError('No hay más stock disponible');
       setTimeout(() => setError(null), 2000);
       return;
@@ -58,8 +72,9 @@ export const useCart = () => {
 
     if (isNaN(parsed) || parsed < 0) return;
 
-    if (parsed > product.stock) {
-      setError(`Stock insuficiente. Máximo disponible: ${product.stock}`);
+    const effectiveStock = getEffectiveStock(product);
+    if (parsed > effectiveStock) {
+      setError(`Stock insuficiente. Máximo disponible: ${effectiveStock}`);
       setTimeout(() => setError(null), 3000);
       return;
     }

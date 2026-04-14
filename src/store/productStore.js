@@ -186,9 +186,21 @@ export const useProductStore = create((set, get) => ({
   decreaseStock: (itemsToDecrease) => {
     let nextProducts;
     set((state) => {
+      // Build a map of productId -> totalUnitsToDecrement, resolving package products to their parent
+      const decrementMap = new Map();
+      for (const item of itemsToDecrease) {
+        const product = state.products.find(p => p.id === item.id);
+        if (product?.parentProductId) {
+          const units = item.quantity * (product.unitsPerPackage || 1);
+          decrementMap.set(product.parentProductId, (decrementMap.get(product.parentProductId) || 0) + units);
+        } else {
+          decrementMap.set(item.id, (decrementMap.get(item.id) || 0) + item.quantity);
+        }
+      }
+
       nextProducts = state.products.map(p => {
-        const soldItem = itemsToDecrease.find(item => item.id === p.id);
-        if (soldItem) return { ...p, stock: Math.max(0, p.stock - soldItem.quantity) };
+        const decrement = decrementMap.get(p.id);
+        if (decrement) return { ...p, stock: Math.max(0, p.stock - decrement) };
         return p;
       });
       return { products: nextProducts };
@@ -199,9 +211,27 @@ export const useProductStore = create((set, get) => ({
   increaseStock: (itemsToIncrease) => {
     let nextProducts;
     set((state) => {
+      // Build a map of productId -> totalUnitsToRestore, resolving package products to their parent
+      const incrementMap = new Map();
+      for (const item of itemsToIncrease) {
+        if (item.parentProductId) {
+          const units = item.quantity * (item.unitsPerPackage || 1);
+          incrementMap.set(item.parentProductId, (incrementMap.get(item.parentProductId) || 0) + units);
+        } else {
+          // Also check current product state in case parentProductId is set there but not on the item
+          const product = state.products.find(p => p.id === item.id);
+          if (product?.parentProductId) {
+            const units = item.quantity * (product.unitsPerPackage || 1);
+            incrementMap.set(product.parentProductId, (incrementMap.get(product.parentProductId) || 0) + units);
+          } else {
+            incrementMap.set(item.id, (incrementMap.get(item.id) || 0) + item.quantity);
+          }
+        }
+      }
+
       nextProducts = state.products.map(p => {
-        const returnedItem = itemsToIncrease.find(item => item.id === p.id);
-        if (returnedItem) return { ...p, stock: p.stock + returnedItem.quantity };
+        const increment = incrementMap.get(p.id);
+        if (increment) return { ...p, stock: p.stock + increment };
         return p;
       });
       return { products: nextProducts };

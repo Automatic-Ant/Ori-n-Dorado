@@ -97,7 +97,7 @@ const Returns = () => {
     discountAmount = subtotal - creditAmount;
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (returnItems.length === 0) return;
     setIsLoading(true);
 
