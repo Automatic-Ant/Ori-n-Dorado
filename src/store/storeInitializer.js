@@ -4,6 +4,7 @@ import { useCustomerStore } from './customerStore';
 import { useSaleStore } from './saleStore';
 import { useAuthStore } from './authStore';
 import { useCajaStore } from './cajaStore';
+import { realtimeService } from '../services/realtimeService';
 
 export const useStoreInitializer = () => {
   const initProducts = useProductStore((state) => state.initProducts);
@@ -14,12 +15,18 @@ export const useStoreInitializer = () => {
 
   useEffect(() => {
     // Initialize all stores — runs once on mount
-    // Zustand store methods are stable references; deps array is intentionally empty
     initAuth();
     initProducts();
     initCustomers();
     initSales();
     initCaja();
+
+    // Start Realtime synchronization
+    realtimeService.subscribe();
+
+    return () => {
+      realtimeService.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 };

@@ -122,6 +122,44 @@ export const useSaleStore = create((set, get) => ({
         console.error("Error syncing cancellation to Supabase:", e);
       }
     }
+  },
+
+  handleRealtimeEvent: (payload) => {
+    const { eventType, new: newItem, old: oldItem, table } = payload;
+    
+    set((state) => {
+      if (table === 'sales') {
+        let next = [...state.sales];
+        if (eventType === 'INSERT') {
+          // Note: Full sale object with items is preferred, but for realtime INSERT 
+          // we might just trigger a single fetch if we want the items.
+          // For now, let's just add it if not present.
+          if (!next.some(s => s.id === newItem.id)) {
+             next = [newItem, ...next];
+          }
+        } else if (eventType === 'UPDATE') {
+          next = next.map(s => s.id === newItem.id ? { ...s, ...newItem } : s);
+        } else if (eventType === 'DELETE') {
+          next = next.filter(s => s.id !== oldItem.id);
+        }
+        localStorage.setItem('orion_sales', JSON.stringify(next));
+        return { sales: next };
+      }
+      
+      if (table === 'credit_notes') {
+        let next = [...state.creditNotes];
+        if (eventType === 'INSERT') {
+          if (!next.some(n => n.id === newItem.id)) next = [newItem, ...next];
+        } else if (eventType === 'UPDATE') {
+          next = next.map(n => n.id === newItem.id ? { ...n, ...newItem } : n);
+        } else if (eventType === 'DELETE') {
+          next = next.filter(n => n.id !== oldItem.id);
+        }
+        localStorage.setItem('orion_credit_notes', JSON.stringify(next));
+        return { creditNotes: next };
+      }
+      return state;
+    });
   }
 }));
 

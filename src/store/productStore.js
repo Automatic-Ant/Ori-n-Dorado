@@ -246,5 +246,30 @@ export const useProductStore = create((set, get) => ({
       return { products: nextProducts };
     });
     scheduleSave(nextProducts);
+  },
+
+  // Realtime handlers from external sources
+  handleRealtimeEvent: (payload) => {
+    const { eventType, new: newItem, old: oldItem } = payload;
+    
+    set((state) => {
+      let nextProducts = [...state.products];
+      
+      if (eventType === 'INSERT') {
+        // Only add if not already present (avoid duplicates from our own optimistic adds)
+        if (!nextProducts.some(p => p.id === newItem.id)) {
+          const mapped = supabaseService.mapProduct(newItem);
+          nextProducts = [mapped, ...nextProducts];
+        }
+      } else if (eventType === 'UPDATE') {
+        const mapped = supabaseService.mapProduct(newItem);
+        nextProducts = nextProducts.map(p => p.id === mapped.id ? { ...p, ...mapped } : p);
+      } else if (eventType === 'DELETE') {
+        nextProducts = nextProducts.filter(p => p.id !== oldItem.id);
+      }
+      
+      scheduleSave(nextProducts);
+      return { products: nextProducts };
+    });
   }
 }));

@@ -152,6 +152,26 @@ export const useCustomerStore = create((set, get) => ({
 
     // sync to supabase
     await supabaseService.updateCustomer(customer.id, { ...customer, creditBalance: newBalance });
+  },
+
+  handleRealtimeEvent: (payload) => {
+    const { eventType, new: newItem, old: oldItem } = payload;
+    set((state) => {
+      let next = [...state.customers];
+      if (eventType === 'INSERT') {
+        if (!next.some(c => c.id === newItem.id)) {
+          const mapped = { ...newItem, creditBalance: Number(newItem.credit_balance || 0) };
+          next = [...next, mapped];
+        }
+      } else if (eventType === 'UPDATE') {
+        const mapped = { ...newItem, creditBalance: Number(newItem.credit_balance || 0) };
+        next = next.map(c => c.id === mapped.id ? { ...c, ...mapped } : c);
+      } else if (eventType === 'DELETE') {
+        next = next.filter(c => c.id !== oldItem.id);
+      }
+      localStorage.setItem('orion_customers', JSON.stringify(next));
+      return { customers: next };
+    });
   }
 }));
 

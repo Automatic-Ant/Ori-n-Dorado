@@ -65,4 +65,20 @@ export const useCajaStore = create((set) => ({
       console.error('Error deleting caja movement from Supabase:', e);
     }
   },
+
+  handleRealtimeEvent: (payload) => {
+    const { eventType, new: newItem, old: oldItem } = payload;
+    set((state) => {
+      let next = [...state.movements];
+      if (eventType === 'INSERT') {
+        if (!next.some(m => m.id === newItem.id)) next = [newItem, ...next];
+      } else if (eventType === 'UPDATE') {
+        next = next.map(m => m.id === newItem.id ? { ...m, ...newItem } : m);
+      } else if (eventType === 'DELETE') {
+        next = next.filter(m => m.id !== oldItem.id);
+      }
+      localStorage.setItem('orion_caja_movements', JSON.stringify(next));
+      return { movements: next };
+    });
+  }
 }));
