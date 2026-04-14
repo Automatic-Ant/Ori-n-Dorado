@@ -169,24 +169,26 @@ export const supabaseService = {
     };
   },
 
-  async addProduct(product) {
+  async addProduct(productData) {
+    const payload = {
+      code:              productData.code,
+      name:              productData.name,
+      category:          canonicalCategory(productData.category || 'Otros'),
+      stock:             Number(productData.stock) || 0,
+      codigo_precio:     Number(productData.codigoPrecio) || 0,
+      price:             Number(productData.price) || 0,
+      base_code:         Number(productData.baseCode) || 0,
+      min_stock:         Number(productData.minStock) || 0,
+      unit:              productData.unit || 'unidad',
+      marca:             productData.marca || '',
+      list_price:        Number(productData.listPrice) || 0,
+      parent_product_id: productData.parentProductId || null,
+      units_per_package: Number(productData.unitsPerPackage) || 1,
+    };
+
     const { data, error } = await supabase
       .from('products')
-      .insert([{
-        code: product.code,
-        name: product.name,
-        category: product.category,
-        stock: product.stock,
-        codigo_precio: product.codigoPrecio,
-        price: product.price,
-        base_code: product.baseCode,
-        min_stock: product.minStock,
-        unit: product.unit,
-        marca: product.marca || '',
-        list_price: product.listPrice || 0,
-        parent_product_id: product.parentProductId || null,
-        units_per_package: product.unitsPerPackage || 1,
-      }])
+      .insert([payload])
       .select();
 
     if (error) {
