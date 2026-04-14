@@ -150,18 +150,22 @@ const Stock = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const term = normalize(deferredSearch);
-    const termC = compact(deferredSearch);
+    const term = normalize(deferredSearch).trim();
     const marcaNorm = normalize(filterMarca);
     const catNorm = normalize(filterCategory);
+
+    // Split into words; every word must appear somewhere in the product fields
+    const words = term ? term.split(/\s+/).filter(Boolean) : [];
+
     return products.filter(p => {
-      if (term) {
-        const matches = (field) => {
-          const n = normalize(field);
-          const c = compact(field);
-          return n.includes(term) || c.includes(termC);
-        };
-        if (!matches(p.name) && !matches(p.code) && !matches(p.category) && !matches(p.marca)) return false;
+      if (words.length > 0) {
+        // Build a single searchable string for the product
+        const haystack = normalize(
+          [p.name, p.code, p.category, p.marca].filter(Boolean).join(' ')
+        );
+        const haystackC = haystack.replace(/\s/g, '');
+        const allMatch = words.every(w => haystack.includes(w) || haystackC.includes(w.replace(/\s/g, '')));
+        if (!allMatch) return false;
       }
       if (marcaNorm && normalize(p.marca) !== marcaNorm) return false;
       if (catNorm && normalize(p.category) !== catNorm) return false;
