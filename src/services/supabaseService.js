@@ -127,17 +127,21 @@ export const supabaseService = {
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const res = await upsertWithTimeout(chunk);
+          console.log(`[Import] Chunk ${index + 1} intento ${attempt} → status error:`, res.error, '| rows devueltos:', res.data?.length ?? 'null');
           if (res.error) {
             lastErr = res.error.message;
+            console.error(`[Import] Chunk ${index + 1} ERROR:`, res.error);
           } else {
             data = res.data;
             inserted += chunk.length;
             lastErr = null;
             if (data) allInsertedRows = allInsertedRows.concat(data);
+            console.log(`[Import] Chunk ${index + 1} OK → ${chunk.length} productos enviados, ${data?.length ?? 0} confirmados por DB`);
             break;
           }
         } catch (e) {
           lastErr = e.message;
+          console.error(`[Import] Chunk ${index + 1} EXCEPCIÓN:`, e);
         }
         if (attempt < 3) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       }
@@ -145,6 +149,7 @@ export const supabaseService = {
       if (lastErr) {
         skipped += chunk.length;
         if (!firstError) firstError = lastErr;
+        console.error(`[Import] Chunk ${index + 1} falló definitivamente:`, lastErr);
       }
 
       completed++;
