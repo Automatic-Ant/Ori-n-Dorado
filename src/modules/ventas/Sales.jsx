@@ -27,6 +27,8 @@ import { useCart } from './useCart';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getCurrentISO } from '../../utils/dateHelpers';
 import { generateQuotePDF } from './generateQuotePDF';
+import { matchProduct } from '../../utils/searchHelpers';
+import { useDeferredValue } from 'react';
 
 const PAYMENT_METHODS = [
   { key: 'efectivo', label: 'Efectivo', Icon: Banknote },
@@ -96,6 +98,7 @@ const Sales = () => {
   } = useCart();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [searchResults, setSearchResults] = useState([]);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState(null);
@@ -183,19 +186,13 @@ const Sales = () => {
 
   // ── Search ────────────────────────────────────────────────────
   useEffect(() => {
-    if (searchTerm.length >= 2) {
-      const results = products.filter(p => {
-        const pName = p.name ? p.name.toString() : '';
-        const pCode = p.code ? p.code.toString() : '';
-        if (!pName.trim() && !pCode.trim()) return false;
-        const term = searchTerm.toLowerCase();
-        return pName.toLowerCase().includes(term) || pCode.toLowerCase().includes(term);
-      });
+    if (deferredSearch.trim().length >= 2) {
+      const results = products.filter(p => matchProduct(p, deferredSearch));
       setSearchResults(results);
     } else {
       setSearchResults([]);
     }
-  }, [searchTerm, products]);
+  }, [deferredSearch, products]);
 
   const handleAddToCart = (product) => {
     if (addToCart(product, setError)) {

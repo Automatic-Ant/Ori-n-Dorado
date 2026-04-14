@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, memo } from 'react';
 
-// Normaliza texto: minúsculas + sin acentos, para comparaciones flexibles
-const normalize = (str) =>
-  String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-// Versión compacta: además elimina todos los espacios (para "2x2" == "2 x 2")
-const compact = (str) => normalize(str).replace(/\s/g, '');
+import { normalizeText, matchProduct } from '../../utils/searchHelpers';
 import {
   Plus,
   Search,
@@ -144,31 +139,23 @@ const Stock = () => {
 
   const categoryOptions = useMemo(() => {
     const cats = [...new Set(products.map(p => p.category).filter(Boolean))].sort((a, b) =>
-      normalize(a).localeCompare(normalize(b))
+      normalizeText(a).localeCompare(normalizeText(b))
     );
     return cats;
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const term = normalize(searchInput).trim();
-    const marcaNorm = normalize(filterMarca);
-    const catNorm = normalize(filterCategory);
-
-    // Split into words; every word must appear somewhere in the product fields
-    const words = term ? term.split(/\s+/).filter(Boolean) : [];
+    const term = deferredSearch.trim();
+    const marcaNorm = normalizeText(filterMarca);
+    const catNorm = normalizeText(filterCategory);
 
     return products.filter(p => {
-      if (words.length > 0) {
-        // Build a single searchable string for the product
-        const haystack = normalize(
-          [p.name, p.code, p.category, p.marca].filter(Boolean).join(' ')
-        );
-        const haystackC = haystack.replace(/\s/g, '');
-        const allMatch = words.every(w => haystack.includes(w) || haystackC.includes(w));
-        if (!allMatch) return false;
-      }
-      if (marcaNorm && normalize(p.marca) !== marcaNorm) return false;
-      if (catNorm && normalize(p.category) !== catNorm) return false;
+      // 1. Search term match
+      if (!matchProduct(p, deferredSearch)) return false;
+
+      // 2. Filters
+      if (marcaNorm && normalizeText(p.marca) !== marcaNorm) return false;
+      if (catNorm && normalizeText(p.category) !== catNorm) return false;
 
       const stockVal = Number(p.stock) || 0;
       const minStockVal = Number(p.minStock) || 0;
@@ -176,11 +163,13 @@ const Stock = () => {
       if (filterStock === 'bajo' && !(stockVal <= minStockVal && stockVal > 0)) return false;
       if (filterStock === 'sin'  && stockVal !== 0) return false;
       if (onlyLowStock && stockVal > minStockVal) return false;
+      
+      // Hide products with price 0 only if no search term
       if (onlyNoPrecio && !term && Number(p.price) === 0) return false;
 
       return true;
     });
-  }, [products, searchInput, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock]);
+  }, [products, deferredSearch, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock]);
 
   // Reset to page 1 whenever filters change
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
@@ -364,7 +353,7 @@ const Stock = () => {
             onChange={handleSearchChange}
           />
           {searchInput && (
-            <button className="clear-btn" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }} type="button">
+            <button className="clear-btn" onClick={() => { setSearchInput(''); setCurrentPage(1); }} type="button">
               <X size={16} />
             </button>
           )}

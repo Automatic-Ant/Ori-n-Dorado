@@ -19,6 +19,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProductStore } from '../../store/productStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { calculateCartTotal } from '../../utils/calculateTotals';
+import { matchProduct } from '../../utils/searchHelpers';
+import { useDeferredValue } from 'react';
 
 const QuantityInput = ({ item, products, handleSetQuantity }) => {
   const [localValue, setLocalValue] = React.useState(item.quantity.toString());
@@ -64,6 +66,7 @@ const Quotes = () => {
   
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [searchResults, setSearchResults] = useState([]);
   const [customerDni, setCustomerDni] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
@@ -73,18 +76,13 @@ const Quotes = () => {
 
   // Search logic
   useEffect(() => {
-    if (searchTerm.length >= 2) {
-      const results = products.filter(p => {
-        const pName = p.name ? p.name.toString().toLowerCase() : '';
-        const pCode = p.code ? p.code.toString().toLowerCase() : '';
-        const term = searchTerm.toLowerCase();
-        return pName.includes(term) || pCode.includes(term);
-      });
+    if (deferredSearch.trim().length >= 2) {
+      const results = products.filter(p => matchProduct(p, deferredSearch));
       setSearchResults(results);
     } else {
       setSearchResults([]);
     }
-  }, [searchTerm, products]);
+  }, [deferredSearch, products]);
 
   const addToCart = (product) => {
     const existing = cart.find(item => item.id === product.id);

@@ -7,6 +7,8 @@ import { useSaleStore } from '../../store/saleStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getCurrentISO } from '../../utils/dateHelpers';
 import { supabaseService } from '../../services/supabaseService';
+import { matchProduct } from '../../utils/searchHelpers';
+import { useDeferredValue } from 'react';
 
 const Returns = () => {
   const products = useProductStore((s) => s.products);
@@ -17,6 +19,7 @@ const Returns = () => {
   const creditNotes = useSaleStore((s) => s.creditNotes);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [searchResults, setSearchResults] = useState([]);
   const [returnItems, setReturnItems] = useState([]);
   const [discountPct, setDiscountPct] = useState(0);
@@ -32,19 +35,12 @@ const Returns = () => {
   }, []);
 
   useEffect(() => {
-    if (searchTerm.length >= 2) {
-      setSearchResults(
-        products.filter((p) => {
-          const name = (p.name || '').toLowerCase();
-          const code = (p.code || '').toLowerCase();
-          const term = searchTerm.toLowerCase();
-          return (name.includes(term) || code.includes(term)) && p.name?.trim();
-        })
-      );
+    if (deferredSearch.trim().length >= 2) {
+      setSearchResults(products.filter((p) => matchProduct(p, deferredSearch)));
     } else {
       setSearchResults([]);
     }
-  }, [searchTerm, products]);
+  }, [deferredSearch, products]);
 
   useEffect(() => {
     if (customerQuery.length >= 2) {
