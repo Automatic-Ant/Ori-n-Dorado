@@ -82,19 +82,25 @@ export const useProductStore = create((set, get) => ({
 
       // Merge into current state sorted alphabetically.
       // Uses existing UUID when available; temp ID resolved on next reload.
+      // NOTE: sort without locale param is ~10x faster for large lists.
+      let nextProducts;
       set((state) => {
         const byCode = new Map(state.products.map(p => [p.code, p]));
         for (const p of productList) {
           const existing = byCode.get(p.code);
           byCode.set(p.code, { ...p, id: existing?.id || `temp-${p.code}` });
         }
-        const next = [...byCode.values()].sort((a, b) =>
-          (a.name || '').localeCompare(b.name || '', 'es')
-        );
-        console.log(`[Import] Estado actualizado: ${next.length} productos en store`);
-        try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch (_) {}
-        return { products: next };
+        nextProducts = [...byCode.values()].sort((a, b) => {
+          const na = (a.name || '').toUpperCase();
+          const nb = (b.name || '').toUpperCase();
+          return na < nb ? -1 : na > nb ? 1 : 0;
+        });
+        console.log(`[Import] Estado actualizado: ${nextProducts.length} productos en store`);
+        return { products: nextProducts };
       });
+
+      // Defer the heavy localStorage write off the main thread
+      scheduleSave(nextProducts);
 
       onProgress?.(100);
       return result;

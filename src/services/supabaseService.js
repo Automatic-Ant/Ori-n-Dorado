@@ -69,10 +69,10 @@ export const supabaseService = {
   },
 
   async bulkAddProducts(products, onProgress) {
-    const CHUNK = 25;        // Smaller chunks → less load per request
-    const CONCURRENCY = 2;   // Only 2 parallel requests to avoid overwhelming a cold server
-    const TIMEOUT_MS = 15000;
-    const RETRY_DELAY_MS = 2000;
+    const CHUNK = 100;       // Larger chunks → fewer requests (10 chunks per 1000 products)
+    const CONCURRENCY = 5;   // 5 parallel requests at a time
+    const TIMEOUT_MS = 25000;
+    const RETRY_DELAY_MS = 1000;
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
