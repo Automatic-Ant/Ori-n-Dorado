@@ -104,7 +104,7 @@ const Stock = () => {
   }, [globalBaseCode]);
 
   // Reset page when any filter (including deferred search) settles
-  useEffect(() => { setCurrentPage(1); }, [deferredSearch, filterMarca, filterCategory, filterStock, onlyLowStock, onlyNoPrecio]);
+  useEffect(() => { setCurrentPage(1); }, [searchInput, filterMarca, filterCategory, filterStock, onlyLowStock, onlyNoPrecio]);
 
   // Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -150,7 +150,7 @@ const Stock = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const term = normalize(deferredSearch).trim();
+    const term = normalize(searchInput).trim();
     const marcaNorm = normalize(filterMarca);
     const catNorm = normalize(filterCategory);
 
@@ -164,7 +164,7 @@ const Stock = () => {
           [p.name, p.code, p.category, p.marca].filter(Boolean).join(' ')
         );
         const haystackC = haystack.replace(/\s/g, '');
-        const allMatch = words.every(w => haystack.includes(w) || haystackC.includes(w.replace(/\s/g, '')));
+        const allMatch = words.every(w => haystack.includes(w) || haystackC.includes(w));
         if (!allMatch) return false;
       }
       if (marcaNorm && normalize(p.marca) !== marcaNorm) return false;
@@ -180,7 +180,7 @@ const Stock = () => {
 
       return true;
     });
-  }, [products, deferredSearch, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock]);
+  }, [products, searchInput, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock]);
 
   // Reset to page 1 whenever filters change
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
