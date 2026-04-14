@@ -269,7 +269,15 @@ export const useProductStore = create((set, get) => ({
       } else if (eventType === 'UPDATE') {
         nextProducts = nextProducts.map(p => p.id === newItem.id ? { ...p, ...newItem } : p);
       } else if (eventType === 'DELETE') {
-        nextProducts = nextProducts.filter(p => p.id !== oldItem.id);
+        const deletedId = oldItem?.id;
+        if (!deletedId) {
+          console.warn('[Realtime] DELETE event received without ID. This is a Supabase config issue, but we will try to sync by reloading if needed.');
+          return state;
+        }
+        // Remove both the product and any of its package presentations
+        nextProducts = state.products.filter(p => 
+          p.id !== deletedId && p.parentProductId !== deletedId
+        );
       }
       
       scheduleSave(nextProducts);

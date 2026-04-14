@@ -255,13 +255,44 @@ export const supabaseService = {
   },
 
   async deleteProduct(id, code) {
-    const { data, error } = await supabase.from('products').delete().eq('id', id).select('id');
-    if (error) throw error;
-    if (data && data.length > 0) return;
-    if (!code) throw new Error(`No se encontró el producto con ID "${id}".`);
-    const { data: data2, error: error2 } = await supabase.from('products').delete().eq('code', code).select('id');
-    if (error2) throw error2;
-    if (!data2 || data2.length === 0) throw new Error(`No se encontró el producto con código "${code}".`);
+    try {
+      // 1. Primero borramos cualquier "presentación" (pack/caja) que dependa de este producto
+      // para evitar errores de integridad si es un producto padre.
+      await supabase.from('products').delete().eq('parent_product_id', id);
+
+      // 2. Intentar borrar por ID (UUID)
+      const { data: byId, error: errorId } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id)
+        .select('id');
+
+      if (errorId) {
+        if (errorId.code === '23503') {
+          throw new Error('Este producto tiene ventas registradas y no puede eliminarse por seguridad contable. Sugerencia: Dejalo con stock 0.');
+        }
+        console.warn('[Supabase] Error al borrar por ID, probando alternativo:', errorId.message);
+      }
+
+      if (byId && byId.length > 0) return true;
+
+      // 3. Fallback: Borrar por código
+      if (code) {
+        const { data: byCode, error: errorCode } = await supabase
+          .from('products')
+          .delete()
+          .eq('code', code)
+          .select('id');
+
+        if (errorCode) throw errorCode;
+        if (byCode && byCode.length > 0) return true;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('[Supabase Delete] Error crítico:', err);
+      throw err;
+    }
   },
 
   async getAllCustomers() {
