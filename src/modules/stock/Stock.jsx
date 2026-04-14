@@ -100,6 +100,7 @@ const Stock = () => {
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
+  const [sortBy, setSortBy] = useState('name'); // 'name', 'recent'
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 15;
   
@@ -171,7 +172,7 @@ const Stock = () => {
     const marcaNorm = normalizeText(filterMarca);
     const catNorm = normalizeText(filterCategory);
 
-    return products.filter(p => {
+    let result = products.filter(p => {
       // 1. Search term match
       if (!matchProduct(p, deferredSearch)) return false;
 
@@ -191,7 +192,19 @@ const Stock = () => {
 
       return true;
     });
-  }, [products, deferredSearch, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock]);
+
+    if (sortBy === 'recent') {
+      result.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+    } else {
+      result.sort((a, b) => {
+        const na = (a.name || '').toUpperCase();
+        const nb = (b.name || '').toUpperCase();
+        return na < nb ? -1 : na > nb ? 1 : 0;
+      });
+    }
+
+    return result;
+  }, [products, deferredSearch, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock, sortBy]);
 
   // Reset to page 1 whenever filters change
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
@@ -294,6 +307,7 @@ const Stock = () => {
       listPrice: parseFloat(formData.listPrice) || 0,
       parentProductId: formData.parentProductId || null,
       unitsPerPackage: isPackageProduct ? (Number(formData.unitsPerPackage) || 1) : 1,
+      updatedAt: new Date().toISOString(),
     };
 
     try {
@@ -320,7 +334,13 @@ const Stock = () => {
   const handleBulkImport = async (productList, onProgress) => {
     const result = await bulkAddProducts(productList, onProgress);
     const totalInStore = useProductStore.getState().products.length;
-    return { total: result.inserted, skipped: result.skipped, error: result.firstError, totalInStore };
+    
+    if (result.inserted > 0) {
+      setSortBy('recent');
+      setCurrentPage(1);
+    }
+    
+    return { ...result, totalInStore };
   };
 
   return (
@@ -417,6 +437,14 @@ const Stock = () => {
               <option value="ok">Stock OK</option>
               <option value="bajo">Stock bajo</option>
               <option value="sin">Sin stock</option>
+            </select>
+          </div>
+
+          <div className="filter-select-wrap card glass">
+            <TrendingUp size={15} className="filter-icon" />
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="name">Ordenar por nombre</option>
+              <option value="recent">Más recientes</option>
             </select>
           </div>
 

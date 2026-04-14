@@ -64,6 +64,7 @@ export const supabaseService = {
         listPrice: Number(item.list_price) || 0,
         parentProductId: item.parent_product_id || null,
         unitsPerPackage: Number(item.units_per_package) || 1,
+        updatedAt: item.updated_at,
       };
     }
   },
@@ -171,7 +172,8 @@ export const supabaseService = {
         marca: item.marca || '',
         listPrice: Number(item.list_price) || 0,
         parentProductId: item.parent_product_id || null,
-        units_per_package: Number(item.units_per_package) || 1,
+        unitsPerPackage: Number(item.units_per_package) || 1,
+        updatedAt: item.updated_at,
       }))
     };
   },
@@ -428,6 +430,7 @@ export const supabaseService = {
           subtotal: Number(item.subtotal),
           parentProductId: item.parent_product_id || null,
           unitsPerPackage: Number(item.units_per_package) || 1,
+          updatedAt: item.updated_at,
         })),
       };
     }

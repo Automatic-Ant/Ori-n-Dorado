@@ -26,6 +26,14 @@ const PRICE_FIELDS_METRO = [
 const DEFAULT_CATEGORY = 'Otros';
 const DEFAULT_UNIT = 'unidad';
 
+const cleanNum = (val) => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return val;
+  // Replace comma with dot and remove non-numeric chars except dot/minus
+  const s = String(val).replace(',', '.').replace(/[^-0-9.]/g, '');
+  return parseFloat(s) || 0;
+};
+
 const ImportExcelModal = ({ onClose, onImport }) => {
   const fileInputRef = useRef(null);
   const [step, setStep] = useState('upload'); // upload | map | preview
@@ -99,9 +107,9 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         price        = codigoPrecio;
       } else {
         // Precio por código: price = codigoPrecio × baseCode
-        codigoPrecio = parseFloat(get('codigoPrecio')) || 0;
-        baseCode     = parseFloat(get('baseCode')) || 0;
-        price        = codigoPrecio && baseCode ? codigoPrecio * baseCode : 0;
+        codigoPrecio = cleanNum(get('codigoPrecio'));
+        baseCode     = cleanNum(get('baseCode'));
+        price        = (codigoPrecio && baseCode) ? (codigoPrecio * baseCode) : 0;
       }
 
       return {
@@ -112,9 +120,9 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         codigoPrecio,
         baseCode,
         price,
-        listPrice:    parseFloat(get('listPrice')) || 0,
-        stock:        parseFloat(get('stock')) || 0,
-        minStock:     parseFloat(get('minStock')) || 0,
+        listPrice:    cleanNum(get('listPrice')),
+        stock:        cleanNum(get('stock')),
+        minStock:     cleanNum(get('minStock')),
         unit:         priceMode === 'metro' ? 'metro' : (get('unit') || DEFAULT_UNIT),
       };
     }).filter(p => p.code && p.name);
