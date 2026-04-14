@@ -70,9 +70,9 @@ export const supabaseService = {
 
   async bulkAddProducts(products, onProgress) {
     const CHUNK = 100;       // Larger chunks → fewer requests (10 chunks per 1000 products)
-    const CONCURRENCY = 5;   // 5 parallel requests at a time
+    const CONCURRENCY = 2;   // Keep at 2 — higher concurrency causes deadlocks on upsert
     const TIMEOUT_MS = 25000;
-    const RETRY_DELAY_MS = 1000;
+    const RETRY_DELAY_MS = 1500;
 
     // Deduplicate by code — keep last occurrence
     const seen = new Map();
