@@ -305,7 +305,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         {/* ── STEP 3: Result ── */}
         {step === 'preview' && importResult && (
           <div className="result-step">
-            {importResult.total > 0 ? (
+            {importResult.inserted > 0 ? (
               <>
                 <div className="result-icon success">
                   <Check size={48} />
@@ -313,7 +313,7 @@ const ImportExcelModal = ({ onClose, onImport }) => {
                 <h3>¡Importación completada!</h3>
                 <div className="result-stats">
                   <div className="result-stat">
-                    <span className="result-stat-value">{importResult.total}</span>
+                    <span className="result-stat-value">{importResult.inserted}</span>
                     <span className="result-stat-label">productos importados</span>
                   </div>
                   {importResult.totalInStore && (
