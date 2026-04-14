@@ -49,6 +49,8 @@ const Customers = () => {
     name: '',
     dni: '',
     phone: '',
+    email: '',
+    address: '',
     creditBalance: 0
   });
 
@@ -78,6 +80,8 @@ const Customers = () => {
         name: '',
         dni: '',
         phone: '',
+        email: '',
+        address: '',
         creditBalance: 0
       });
     }
@@ -120,7 +124,7 @@ const Customers = () => {
       reason: creditFormData.reason
     });
 
-    addCredit(selectedCustomerForCredit.name, creditFormData.amount);
+    addCredit(selectedCustomerForCredit.id, creditFormData.amount);
     setIsCreditModalOpen(false);
   };
 
@@ -319,6 +323,17 @@ const Customers = () => {
             <div className="form-group">
               <label>Teléfono</label>
               <input type="text" name="phone" value={customerFormData.phone} onChange={(e) => setCustomerFormData({...customerFormData, phone: e.target.value})} />
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Email</label>
+              <input type="email" name="email" value={customerFormData.email} onChange={(e) => setCustomerFormData({...customerFormData, email: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Dirección</label>
+              <input type="text" name="address" value={customerFormData.address} onChange={(e) => setCustomerFormData({...customerFormData, address: e.target.value})} />
             </div>
           </div>
 

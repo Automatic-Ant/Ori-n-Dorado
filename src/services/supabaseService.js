@@ -328,16 +328,17 @@ export const supabaseService = {
   },
 
   async updateCustomer(id, customerData) {
+    const toUpdate = {};
+    if (customerData.dni !== undefined) toUpdate.dni = customerData.dni || null;
+    if (customerData.name !== undefined) toUpdate.name = customerData.name;
+    if (customerData.email !== undefined) toUpdate.email = customerData.email || null;
+    if (customerData.phone !== undefined) toUpdate.phone = customerData.phone || null;
+    if (customerData.address !== undefined) toUpdate.address = customerData.address || null;
+    if (customerData.creditBalance !== undefined) toUpdate.credit_balance = customerData.creditBalance;
+
     const { error } = await supabase
         .from('customers')
-        .update({
-            dni: customerData.dni || null,
-            name: customerData.name,
-            email: customerData.email || null,
-            phone: customerData.phone || null,
-            address: customerData.address || null,
-            credit_balance: customerData.creditBalance
-        })
+        .update(toUpdate)
         .eq('id', id);
 
     if (error) console.error('Error updating customer in Supabase:', error.message, error.details);

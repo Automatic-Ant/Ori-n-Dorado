@@ -105,15 +105,15 @@ export const useCustomerStore = create((set, get) => ({
     }
   },
 
-  deductCredit: async (customerId, amount) => {
-    const customer = get().customers.find((c) => c.id === customerId);
+  deductCredit: async (idOrName, amount) => {
+    const customer = get().customers.find((c) => c.id === idOrName || c.name === idOrName);
     if (!customer) return;
 
     const newBalance = Math.max(0, (customer.creditBalance || 0) - Number(amount));
 
     set((state) => {
       const newCustomers = state.customers.map((c) =>
-        c.id === customerId ? { ...c, creditBalance: newBalance } : c
+        c.id === customer.id ? { ...c, creditBalance: newBalance } : c
       );
       localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
       return { customers: newCustomers };
@@ -122,8 +122,8 @@ export const useCustomerStore = create((set, get) => ({
     await supabaseService.updateCustomer(customer.id, { ...customer, creditBalance: newBalance });
   },
 
-  addCredit: async (customerName, amount) => {
-    const customer = get().customers.find(c => c.name === customerName);
+  addCredit: async (idOrName, amount) => {
+    const customer = get().customers.find(c => c.id === idOrName || c.name === idOrName);
     if (!customer) return;
 
     const newBalance = (customer.creditBalance || 0) + Number(amount);
