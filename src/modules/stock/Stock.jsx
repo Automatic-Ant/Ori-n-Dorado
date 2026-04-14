@@ -176,7 +176,7 @@ const Stock = () => {
       if (filterStock === 'bajo' && !(stockVal <= minStockVal && stockVal > 0)) return false;
       if (filterStock === 'sin'  && stockVal !== 0) return false;
       if (onlyLowStock && stockVal > minStockVal) return false;
-      if (onlyNoPrecio && Number(p.price) === 0) return false;
+      if (onlyNoPrecio && !term && Number(p.price) === 0) return false;
 
       return true;
     });
