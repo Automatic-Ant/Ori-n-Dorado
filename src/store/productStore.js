@@ -81,14 +81,18 @@ export const useProductStore = create((set, get) => ({
       const result = await supabaseService.bulkAddProducts(productList, onProgress);
 
       const importedRows = result.rows || [];
-      
+      // Si Supabase devolvió las filas reales (con IDs), usarlas.
+      // Si no (error de red, migration no corrida, etc.), usar productList como fallback
+      // para que el usuario vea los productos localmente aunque no hayan llegado a la DB.
+      const sourceList = importedRows.length > 0 ? importedRows : productList;
+
       set((state) => {
-        // Map current products by code
         const byCode = new Map(state.products.map(p => [p.code, p]));
-        
-        // Update with imported data (this includes the real IDs from Supabase)
-        for (const p of importedRows) {
-          byCode.set(p.code, p);
+
+        for (const p of sourceList) {
+          const existing = byCode.get(p.code);
+          // Prefer real ID from Supabase; fall back to existing or temp ID
+          byCode.set(p.code, { ...p, id: p.id && !p.id.startsWith('temp-') ? p.id : (existing?.id || `temp-${p.code}`) });
         }
 
         const nextProducts = [...byCode.values()].sort((a, b) => {
@@ -97,10 +101,8 @@ export const useProductStore = create((set, get) => ({
           return na < nb ? -1 : na > nb ? 1 : 0;
         });
 
-        // Save immediately to localStorage for maximum persistence
         try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch (_) {}
-        
-        console.log(`[Import] Estado actualizado: ${nextProducts.length} productos en store`);
+        console.log(`[Import] Estado actualizado: ${nextProducts.length} productos (${importedRows.length} con ID real de DB)`);
         return { products: nextProducts };
       });
 

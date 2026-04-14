@@ -96,8 +96,10 @@ export const supabaseService = {
         unit:          p.unit  || 'unidad',
         marca:         String(p.marca || ''),
         list_price:    Number(p.listPrice) || 0,
-        parent_product_id: p.parentProductId || null,
-        units_per_package: Number(p.unitsPerPackage) || 1,
+        // parent_product_id y units_per_package se omiten del import masivo:
+        // 1. El Excel no los mapea
+        // 2. Tienen defaults en DB (NULL y 1)
+        // 3. Si la migración no fue ejecutada, incluirlos rompe TODOS los chunks
       })));
     }
 
