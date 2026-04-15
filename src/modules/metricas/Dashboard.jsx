@@ -229,7 +229,7 @@ const Dashboard = () => {
           <div className="section-header">
             <div className="title-with-icon">
               <ShoppingBag className="text-gold" size={24} />
-              <h3>Ventas Recientes</h3>
+              <h3>Ventas Recientes (Sync OK)</h3>
             </div>
             <div className="header-actions">
               {/* Nueva venta quitada por pedido del usuario */}
