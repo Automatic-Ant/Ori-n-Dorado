@@ -15,11 +15,12 @@ import {
   Download,
   Printer
 } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useProductStore } from '../../store/productStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { calculateCartTotal } from '../../utils/calculateTotals';
 import { matchProduct } from '../../utils/searchHelpers';
+import { generateQuotePDF } from '../ventas/generateQuotePDF';
 import { useDeferredValue } from 'react';
 
 const QuantityInput = ({ item, handleSetQuantity }) => {
@@ -130,6 +131,15 @@ const Quotes = () => {
     setIsSuccess(false);
     setCart([]);
     setCustomerDni('');
+  };
+
+  const handleDownloadPDF = () => {
+    const discountPct = 10;
+    generateQuotePDF({ cart, total: subtotal, discount, discountPct, finalTotal, customerDni });
+  };
+
+  const handlePrint = () => {
+    handleDownloadPDF();
   };
 
   // Totals calculation
@@ -316,8 +326,8 @@ const Quotes = () => {
               <h2>Presupuesto Listo</h2>
               <p>Se ha generado el presupuesto para <strong>{customerDni || 'Cliente'}</strong>.</p>
               <div className="success-actions">
-                <button className="btn-secondary"><Printer size={18} /> Imprimir</button>
-                <button className="btn-secondary"><Download size={18} /> Descargar PDF</button>
+                <button className="btn-secondary" onClick={handlePrint}><Printer size={18} /> Imprimir</button>
+                <button className="btn-secondary" onClick={handleDownloadPDF}><Download size={18} /> Descargar PDF</button>
               </div>
               <button className="btn-primary" onClick={handleCloseSuccess} style={{marginTop: '2rem', width: '100%'}}>
                 Cerrar
