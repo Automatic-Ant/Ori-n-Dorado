@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, X, Check, AlertTriangle, FileSpreadsheet, ChevronRight } from 'lucide-react';
+import { productService } from '../../services/productService';
 
 const BASE_FIELDS = [
   { key: 'code',         label: 'Código',         required: true  },
@@ -98,43 +99,34 @@ const ImportExcelModal = ({ onClose, onImport }) => {
         return idx !== undefined && idx !== '' ? String(row[idx] ?? '').trim() : '';
       };
 
-      let codigoPrecio, baseCode, price;
-
-      if (priceMode === 'metro') {
-        // Precio directo por metro: codigoPrecio = precio/m, baseCode = 1
-        codigoPrecio = parseFloat(get('precioMetro')) || 0;
-        baseCode     = 1;
-        price        = codigoPrecio;
-      } else {
-        // Precio por código: price = codigoPrecio × baseCode
-        codigoPrecio = cleanNum(get('codigoPrecio'));
-        baseCode     = cleanNum(get('baseCode'));
-        price        = (codigoPrecio && baseCode) ? (codigoPrecio * baseCode) : 0;
-      }
-
+      const category = get('category') || DEFAULT_CATEGORY;
+      const unit = priceMode === 'metro' ? 'metro' : (get('unit') || DEFAULT_UNIT);
+      const isCableMetros = category === 'Cables' && unit === 'metro';
+      
       return {
         code:         get('code'),
         name:         get('name'),
         marca:        get('marca') || '',
-        category:     get('category') || DEFAULT_CATEGORY,
-        codigoPrecio,
-        baseCode,
-        price,
+        category,
+        codigoPrecio: priceMode === 'metro' ? cleanNum(get('precioMetro')) : cleanNum(get('codigoPrecio')),
+        baseCode:     isCableMetros ? 1 : cleanNum(get('baseCode')),
         listPrice:    cleanNum(get('listPrice')),
         stock:        cleanNum(get('stock')),
         minStock:     cleanNum(get('minStock')),
-        unit:         priceMode === 'metro' ? 'metro' : (get('unit') || DEFAULT_UNIT),
+        unit,
       };
     }).filter(p => p.code && p.name);
 
-    // Detectar códigos duplicados en el Excel
+    // Detectar códigos duplicados en el Excel → bloquear la importación
     const codeCount = {};
     for (const p of products) codeCount[p.code] = (codeCount[p.code] || 0) + 1;
     const duplicates = Object.entries(codeCount).filter(([, n]) => n > 1).map(([code]) => code);
     if (duplicates.length > 0) {
       const preview = duplicates.slice(0, 5).join(', ');
       const extra = duplicates.length > 5 ? ` y ${duplicates.length - 5} más` : '';
-      setImportError(`Tu Excel tiene códigos repetidos: ${preview}${extra}. Se va a conservar solo la última fila de cada uno.`);
+      setImportError(`Tu Excel tiene ${duplicates.length} código(s) repetido(s): ${preview}${extra}. Corregí el archivo antes de importar.`);
+      setImporting(false);
+      return;
     }
 
     try {

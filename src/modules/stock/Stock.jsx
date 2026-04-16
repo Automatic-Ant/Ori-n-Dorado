@@ -20,6 +20,7 @@ import { useProductStore } from '../../store/productStore';
 import { useAuthStore } from '../../store/authStore';
 import Modal from '../../components/Modal';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { productService } from '../../services/productService';
 import ImportExcelModal from './ImportExcelModal';
 
 const ProductRow = memo(({ product, isAdmin, onEdit, onDelete, parentProduct }) => {
@@ -96,7 +97,7 @@ const Stock = () => {
   const deferredSearch = useDeferredValue(searchInput);
   const isSearchStale = searchInput !== deferredSearch;
   const [onlyLowStock, setOnlyLowStock] = useState(() => !!location.state?.filterLowStock);
-  const [onlyNoPrecio, setOnlyNoPrecio] = useState(false);
+  const [onlyNoPrecio, setOnlyNoPrecio] = useState(true);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
@@ -123,7 +124,7 @@ const Stock = () => {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
-    category: 'Cables',
+    category: 'Otros',
     codigoPrecio: '',
     baseCode: '',
     stock: '',
@@ -283,33 +284,24 @@ const Stock = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const isCableMetros = formData.category === 'Cables' && formData.unit === 'metro';
-    const finalCodigoPrecio = parseFloat(formData.codigoPrecio) || 0;
-    const finalBaseCode = isCableMetros ? 1 : (parseFloat(formData.baseCode) || 0);
-
-    const data = {
+    
+    // Pass raw form data (camelCase keys) to the store.
+    // The service layer (supabaseService) will handle prepareProductForDB.
+    const productData = {
       ...formData,
-      codigoPrecio: finalCodigoPrecio,
-      baseCode: finalBaseCode,
-      price: finalCodigoPrecio * finalBaseCode,
-      // Package products don't have their own stock — the parent holds it
-      stock: isPackageProduct ? 0 : (Number(formData.stock) || 0),
-      minStock: Number(formData.minStock) || 0,
-      listPrice: parseFloat(formData.listPrice) || 0,
-      parentProductId: formData.parentProductId || null,
-      unitsPerPackage: isPackageProduct ? (Number(formData.unitsPerPackage) || 1) : 1,
-      updatedAt: new Date().toISOString(),
+      stock: isPackageProduct ? 0 : Number(formData.stock)
     };
 
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, data, editingProduct.code);
+        await updateProduct(editingProduct.id, productData);
       } else {
-        await addProduct(data);
+        await addProduct(productData);
       }
       setIsModalOpen(false);
-    } catch {
-      alert('Error al guardar en Supabase. Revisá la consola para más detalles.');
+    } catch (error) {
+      console.error('Submit Error:', error);
+      alert('Error al guardar: ' + (error.message || 'Error desconocido'));
     }
   };
 

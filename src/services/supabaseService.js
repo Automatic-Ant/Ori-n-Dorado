@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { productService } from './productService';
 
 // Normaliza variaciones de categoría a un nombre canónico
 const CATEGORY_CANONICAL = {
@@ -65,7 +66,8 @@ export function mapSale(sale) {
     discount: Number(sale.discount || 0),
     discountPct: Number(sale.discount_pct || 0),
     paymentMethod: sale.payment_method,
-    paymentSplits: sale.payment_splits || [],
+    paymentDetail: sale.payment_detail || {},
+    customerId: sale.customer_id,
     customerDni: sale.customer_dni || '',
     customerName: sale.customer_name || '',
     status: sale.status,
@@ -133,19 +135,7 @@ export const supabaseService = {
     const deduped = [...seen.values()];
     const chunks = [];
     for (let i = 0; i < deduped.length; i += CHUNK) {
-      chunks.push(deduped.slice(i, i + CHUNK).map(p => ({
-        code:          String(p.code).trim(),
-        name:          String(p.name).trim(),
-        category:      canonicalCategory(p.category),
-        stock:         Number(p.stock) || 0,
-        codigo_precio: Number(p.codigoPrecio) || 0,
-        price:         Number(p.price) || 0,
-        base_code:     Number(p.baseCode) || 0,
-        min_stock:     Number(p.minStock) || 0,
-        unit:          p.unit  || 'unidad',
-        marca:         String(p.marca || ''),
-        list_price:    Number(p.listPrice) || 0,
-      })));
+      chunks.push(deduped.slice(i, i + CHUNK).map(p => productService.prepareProductForDB(p)));
     }
     const totalChunks = chunks.length;
     let completed = 0;
@@ -198,21 +188,7 @@ export const supabaseService = {
   },
 
   async addProduct(product) {
-    const payload = {
-        code:          String(product.code || '').trim(),
-        name:          String(product.name || '').trim(),
-        category:      canonicalCategory(product.category),
-        stock:         Number(product.stock) || 0,
-        codigo_precio: Number(product.codigoPrecio) || 0,
-        price:         Number(product.price) || 0,
-        base_code:     Number(product.baseCode) || 0,
-        min_stock:     Number(product.minStock) || 0,
-        unit:          product.unit || 'unidad',
-        marca:         String(product.marca || ''),
-        list_price:    Number(product.listPrice) || 0,
-        parent_product_id: product.parentProductId || null,
-        units_per_package: Number(product.unitsPerPackage) || 1
-    };
+    const payload = productService.prepareProductForDB(product);
     const { data, error } = await supabase
       .from('products')
       .insert([payload])
@@ -225,23 +201,11 @@ export const supabaseService = {
   },
 
   async updateProduct(id, productData) {
-    const toUpdate = {};
-    if (productData.name !== undefined)     toUpdate.name = String(productData.name || '').trim();
-    if (productData.category !== undefined) toUpdate.category = canonicalCategory(productData.category);
-    if (productData.stock !== undefined)    toUpdate.stock = Number(productData.stock);
-    if (productData.price !== undefined)    toUpdate.price = Number(productData.price);
-    if (productData.codigoPrecio !== undefined) toUpdate.codigo_precio = Number(productData.codigoPrecio);
-    if (productData.baseCode !== undefined) toUpdate.base_code = Number(productData.baseCode);
-    if (productData.minStock !== undefined) toUpdate.min_stock = Number(productData.minStock);
-    if (productData.unit !== undefined)     toUpdate.unit = productData.unit;
-    if (productData.marca !== undefined)    toUpdate.marca = String(productData.marca || '');
-    if (productData.listPrice !== undefined) toUpdate.list_price = Number(productData.listPrice);
-    if (productData.parentProductId !== undefined) toUpdate.parent_product_id = productData.parentProductId;
-    if (productData.unitsPerPackage !== undefined) toUpdate.units_per_package = Number(productData.unitsPerPackage);
-
+    const payload = productService.prepareProductForDB({ ...productData, id });
+    
     const { data, error } = await supabase
       .from('products')
-      .update(toUpdate)
+      .update(payload)
       .eq('id', id)
       .select();
 
@@ -382,7 +346,8 @@ export const supabaseService = {
         discount: sale.discount || 0,
         discount_pct: sale.discountPct || 0,
         payment_method: sale.paymentMethod,
-        payment_splits: sale.paymentSplits || [],
+        payment_detail: sale.paymentDetail || {},
+        customer_id: sale.customerId || null,
         customer_dni: sale.customerDni || '',
         customer_name: sale.customerName || '',
         seller_name: sale.sellerName || '',
@@ -408,11 +373,9 @@ export const supabaseService = {
     }));
     const { error: itemsError } = await supabase.from('sale_items').insert(saleItemsList);
     if (itemsError) console.error('Error syncing sale items to Supabase:', itemsError);
-    for (const item of sale.items) {
-        const targetId = item.parentProductId || item.id;
-        const qty = item.quantity * (item.unitsPerPackage || 1);
-        await supabase.rpc('decrement_stock', { product_id: targetId, qty: qty });
-    }
+    
+    // ELIMINADO: El stock ahora se descuenta solo por Triggers en la DB.
+    // No más decrement_stock rpc manual desde el cliente.
   },
 
   async updateSaleStatus(saleId, status) {

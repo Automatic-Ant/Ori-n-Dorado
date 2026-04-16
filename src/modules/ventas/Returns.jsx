@@ -9,6 +9,8 @@ import { getCurrentISO } from '../../utils/dateHelpers';
 import { supabaseService } from '../../services/supabaseService';
 import { matchProduct } from '../../utils/searchHelpers';
 import { useDeferredValue } from 'react';
+import { productService } from '../../services/productService';
+import { saleService } from '../../services/saleService';
 
 const Returns = () => {
   const products = useProductStore((s) => s.products);
@@ -91,41 +93,37 @@ const Returns = () => {
     if (returnItems.length === 0) return;
     setIsLoading(true);
 
-    const customerName = foundCustomer?.name || customerQuery || 'Cliente General';
-    const productsSummary = returnItems.map((i) => `${i.name} (x${i.quantity})`).join(', ');
+    try {
+      const customerName = foundCustomer?.name || customerQuery || 'Cliente General';
+      const productsSummary = returnItems.map((i) => `${i.name} (x${i.quantity})`).join(', ');
 
-    // 1. All local updates run synchronously before any await
-    increaseStock(returnItems);
+      await Promise.all(
+        returnItems.map(item => productService.adjustStock(item.id, item.quantity))
+      );
 
-    // addCreditNote and addCredit do their local set() before the first await,
-    // so calling without await still updates local state immediately
-    addCreditNote({
-      customer_name: customerName,
-      amount: creditAmount,
-      reason: `Devolución: ${productsSummary}`,
-      date: getCurrentISO(),
-    });
+      await addCreditNote({
+        customer_name: customerName,
+        amount: creditAmount,
+        reason: `Devolución: ${productsSummary}`,
+        date: getCurrentISO(),
+      });
 
-    if (foundCustomer) {
-      addCredit(foundCustomer.name, creditAmount);
+      if (foundCustomer) {
+        await addCredit(foundCustomer.name, creditAmount);
+      }
+
+      setIsSuccess(true);
+      resetForm();
+    } catch (e) {
+      console.error("Error processing return:", e);
+      alert("Error al procesar la devolución. Intente nuevamente.");
+    } finally {
+      setIsLoading(false);
     }
-
-    // 2. Show success right away
-    setIsLoading(false);
-    setIsSuccess(true);
+    
     setTimeout(() => {
       setIsSuccess(false);
-      resetForm();
     }, 2500);
-
-    // 3. Parallel sync to Supabase
-    try {
-      await Promise.all(
-        returnItems.map(item => supabaseService.incrementStock(item.id, item.quantity))
-      );
-    } catch (e) {
-      console.error("Error syncing returns to Supabase:", e);
-    }
   };
 
   return (

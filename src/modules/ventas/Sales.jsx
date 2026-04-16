@@ -26,17 +26,20 @@ import { useCustomerStore } from '../../store/customerStore';
 import { useCart } from './useCart';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getCurrentISO } from '../../utils/dateHelpers';
+import { saleService, PAYMENT_METHODS } from '../../services/saleService';
 import { generateQuotePDF } from './generateQuotePDF';
 import { matchProduct } from '../../utils/searchHelpers';
 import { useDeferredValue } from 'react';
 
-const PAYMENT_METHODS = [
-  { key: 'efectivo', label: 'Efectivo', Icon: Banknote },
-  { key: 'QR', label: 'QR', Icon: QrCode },
-  { key: 'debito', label: 'Débito', Icon: Wallet },
-  { key: 'tarjeta', label: 'Tarjeta', Icon: CreditCard },
-  { key: 'transferencia', label: 'Transf.', Icon: ArrowRightLeft },
-];
+// PAYMENT_METHODS moved to saleService
+
+const METHOD_ICONS = {
+  efectivo: Banknote,
+  transferencia: ArrowRightLeft,
+  debito: CreditCard,
+  credito: QrCode, // Or another icon
+  saldo_favor: Wallet2
+};
 
 const QuantityInput = ({ item, handleSetQuantity }) => {
   const [localValue, setLocalValue] = React.useState(item.quantity.toString());
@@ -79,7 +82,6 @@ const QuantityInput = ({ item, handleSetQuantity }) => {
 const Sales = () => {
   const products = useProductStore((state) => state.products);
   const user = useAuthStore((state) => state.user);
-  const decreaseStock = useProductStore((state) => state.decreaseStock);
   const addSale = useSaleStore((state) => state.addSale);
   const customers = useCustomerStore((state) => state.customers);
   const deductCredit = useCustomerStore((state) => state.deductCredit);
@@ -107,6 +109,7 @@ const Sales = () => {
   // splits[1]: método secundario, monto auto = remainder
   const [splits, setSplits] = useState([{ method: 'efectivo', amount: null }]);
   const [discountPct, setDiscountPct] = useState(10);
+  const [discountOnlyCash, setDiscountOnlyCash] = useState(false);
 
   const searchInputRef = useRef(null);
 
@@ -118,40 +121,40 @@ const Sales = () => {
   );
   const availableCredit = matchedCustomer?.creditBalance || 0;
 
-  // ── Calculation ──────────────────────────────────────────────
-  // 1. Apply credit first — guard: credit can only be applied when there's a balance
-  const creditUsed = (applyCredit && availableCredit > 0) ? Math.min(availableCredit, total) : 0;
-  const afterCredit = total - creditUsed;
+  // ── Calculation using saleService ─────────────────────────────
+  const calculation = useMemo(() => {
+    // Determinamos cuánto crédito usar
+    const creditToUse = (applyCredit && availableCredit > 0) ? Math.min(availableCredit, total) : 0;
+    
+    // Preparar los splits para el servicio
+    const currentSplits = splits.map((s, i) => ({
+      method: s.method,
+      amount: i === 0 && splits.length === 2 ? (s.amount ?? 0) : (i === 1 ? Math.max(0, total - creditToUse - (splits[0].amount ?? 0)) : (total - creditToUse))
+    }));
 
-  // 2. Split base amounts (before discount)
-  const split0Base = hasTwoSplits ? (splits[0].amount ?? 0) : afterCredit;
-  const split1Base = hasTwoSplits ? Math.max(0, afterCredit - split0Base) : 0;
+    return saleService.calculateExpandedSale({
+      items: cart,
+      discountPct,
+      useCustomerCredit: creditToUse,
+      paymentSplits: currentSplits,
+      discountOnlyCash
+    });
+  }, [cart, total, discountPct, applyCredit, availableCredit, splits, discountOnlyCash]);
 
-  // 3. Find efectivo portion
-  const efectivoIdx = splits.findIndex(s => s.method === 'efectivo');
-  const cashBase = efectivoIdx === 0 ? split0Base : efectivoIdx === 1 ? split1Base : 0;
-  const hasEfectivo = efectivoIdx !== -1;
+  const { itemsTotal, subtotalAfterCredit, discountAmount, total: finalTotal, customerCreditUsed } = calculation;
 
-  // 4. Apply discount only to cash portion
-  let cashFinal = cashBase;
-  let discount = 0;
-  if (discountPct > 0 && cashBase > 0) {
-    const discounted = cashBase * (1 - discountPct / 100);
-    const rounded = Math.round(discounted);
-    const mod = rounded % 100;
-    cashFinal = mod <= 50 ? rounded - mod : rounded + (100 - mod);
-    discount = cashBase - cashFinal;
-  }
-
-  const nonCashBase = (split0Base + split1Base) - cashBase;
-  const finalTotal = cashFinal + nonCashBase;
-
-  // Actual amounts charged per split (after discount applied to cash)
-  const split0Final = splits[0].method === 'efectivo' ? cashFinal
-    : splits[0].method !== 'efectivo' && efectivoIdx === 1 ? split0Base
-    : split0Base;
-  const split1Final = splits.length === 2
-    ? (splits[1].method === 'efectivo' ? cashFinal : split1Base)
+  // Montos finales para cada split
+  const split0Base = hasTwoSplits ? (splits[0].amount ?? 0) : (total - customerCreditUsed);
+  const split1Base = hasTwoSplits ? Math.max(0, (total - customerCreditUsed) - split0Base) : 0;
+  
+  // Aplicar el descuento proporcionalmente o según la lógica de cash
+  const split0Final = splits[0].method === 'efectivo' && discountOnlyCash 
+    ? (split0Base - discountAmount) 
+    : (discountOnlyCash ? split0Base : (split0Base - (discountAmount * (split0Base / (total - customerCreditUsed || 1)))));
+  const split1Final = splits.length === 2 ? 
+    (splits[1].method === 'efectivo' && discountOnlyCash 
+      ? (split1Base - discountAmount) 
+      : (discountOnlyCash ? split1Base : (split1Base - (discountAmount * (split1Base / (total - customerCreditUsed || 1))))))
     : 0;
 
   // ── Split helpers ─────────────────────────────────────────────
@@ -206,30 +209,40 @@ const Sales = () => {
     if (cart.length === 0) return;
 
     const paymentMethodStr = splits.map(s => s.method).join('+');
-    const paymentSplits = hasTwoSplits
-      ? [
-          { method: splits[0].method, amount: split0Final },
-          { method: splits[1].method, amount: split1Final }
-        ]
-      : [{ method: splits[0].method, amount: finalTotal }];
+    const paymentDetail = {};
+    if (customerCreditUsed > 0) {
+      paymentDetail['saldo_favor'] = customerCreditUsed;
+    }
+    
+    if (hasTwoSplits) {
+      paymentDetail[splits[0].method] = split0Final;
+      paymentDetail[splits[1].method] = split1Final;
+    } else {
+      paymentDetail[splits[0].method] = finalTotal;
+    }
+
+    // Generate a readable ID if not present (e.g. #1234)
+    const saleId = `OR-${Date.now().toString().slice(-6)}`;
 
     const saleData = {
+      id: saleId,
       items: cart,
       subtotal: total,
-      discount: creditUsed + discount,
+      discount: customerCreditUsed + discountAmount,
       discountPct,
       total: finalTotal,
       customerDni,
+      customerId: matchedCustomer?.id || null,
       paymentMethod: paymentMethodStr,
-      paymentSplits,
+      paymentDetail,
       timestamp: getCurrentISO(),
       sellerName: user?.name || 'Desconocido'
     };
 
-    addSale(saleData, decreaseStock);
+    addSale(saleData);
 
-    if (creditUsed > 0 && matchedCustomer) {
-      deductCredit(matchedCustomer.id, creditUsed);
+    if (customerCreditUsed > 0 && matchedCustomer) {
+      deductCredit(matchedCustomer.id, customerCreditUsed);
     }
 
     setIsSuccess(true);
@@ -360,16 +373,19 @@ const Sales = () => {
             {/* Split 0 */}
             <div className="split-row">
               <div className="split-method-btns">
-                {PAYMENT_METHODS.map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    className={`pay-btn ${splits[0].method === key ? 'active' : ''}`}
-                    onClick={() => setSplitMethod(0, key)}
-                  >
-                    <Icon size={16} />
-                    <span>{label}</span>
-                  </button>
-                ))}
+                {PAYMENT_METHODS.map(({ id, label }) => {
+                  const Icon = METHOD_ICONS[id] || Banknote;
+                  return (
+                    <button
+                      key={id}
+                      className={`pay-btn ${splits[0].method === id ? 'active' : ''}`}
+                      onClick={() => setSplitMethod(0, id)}
+                    >
+                      <Icon size={16} />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
               </div>
               {hasTwoSplits && (
                 <div className="split-amount-row">
@@ -388,36 +404,31 @@ const Sales = () => {
               )}
             </div>
 
-            {/* Discount (only when efectivo is involved) */}
-            {hasEfectivo && (
-              <div className="discount-selector">
-                <label className="discount-label">Desc. efectivo</label>
-                <div className="discount-presets">
-                  {[0, 5, 10, 15, 20].map(pct => (
-                    <button
-                      key={pct}
-                      className={`discount-preset-btn ${discountPct === pct ? 'active' : ''}`}
-                      onClick={() => setDiscountPct(pct)}
-                    >
-                      {pct}%
-                    </button>
-                  ))}
-                </div>
-                <div className="discount-custom-input">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={discountPct}
-                    onChange={(e) => {
-                      const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-                      setDiscountPct(val);
-                    }}
-                  />
-                  <span className="discount-pct-symbol">%</span>
-                </div>
+            {/* Discount Section */}
+            <div className="discount-selector">
+              <label className="discount-label">Descuento ({discountPct}%)</label>
+              <div className="discount-presets">
+                {[0, 5, 10, 15, 20].map(pct => (
+                  <button
+                    key={pct}
+                    className={`discount-preset-btn ${discountPct === pct ? 'active' : ''}`}
+                    onClick={() => setDiscountPct(pct)}
+                  >
+                    {pct}%
+                  </button>
+                ))}
               </div>
-            )}
+              {hasTwoSplits && splits.some(s => s.method === 'efectivo') && (
+                <label className="discount-only-cash-toggle">
+                  <input 
+                    type="checkbox" 
+                    checked={discountOnlyCash} 
+                    onChange={e => setDiscountOnlyCash(e.target.checked)} 
+                  />
+                  <span>Solo efectivo</span>
+                </label>
+              )}
+            </div>
 
             {/* Add / Remove second split */}
             {!hasTwoSplits ? (
@@ -428,16 +439,19 @@ const Sales = () => {
             ) : (
               <div className="split-row split-row-secondary">
                 <div className="split-method-btns">
-                  {PAYMENT_METHODS.filter(m => m.key !== splits[0].method).map(({ key, label, Icon }) => (
-                    <button
-                      key={key}
-                      className={`pay-btn ${splits[1].method === key ? 'active' : ''}`}
-                      onClick={() => setSplitMethod(1, key)}
-                    >
-                      <Icon size={16} />
-                      <span>{label}</span>
-                    </button>
-                  ))}
+                  {PAYMENT_METHODS.filter(m => m.id !== splits[0].method).map(({ id, label }) => {
+                    const Icon = METHOD_ICONS[id] || Banknote;
+                    return (
+                      <button
+                        key={id}
+                        className={`pay-btn ${splits[1].method === id ? 'active' : ''}`}
+                        onClick={() => setSplitMethod(1, id)}
+                      >
+                        <Icon size={16} />
+                        <span>{label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="split-secondary-info">
                   <span className="split-remainder-label">Resto:</span>
@@ -475,17 +489,17 @@ const Sales = () => {
               </div>
             )}
 
-            {creditUsed > 0 && (
+            {customerCreditUsed > 0 && (
               <div className="summary-row credit-used">
                 <span>Saldo aplicado</span>
-                <span>-{formatCurrency(creditUsed)}</span>
+                <span>-{formatCurrency(customerCreditUsed)}</span>
               </div>
             )}
 
-            {discount > 0 && (
+            {discountAmount > 0 && (
               <div className="summary-row discount">
-                <span>Desc. efectivo ({discountPct}%)</span>
-                <span>-{formatCurrency(discount)}</span>
+                <span>Desc. {discountOnlyCash ? 'efectivo' : 'general'} ({discountPct}%)</span>
+                <span>-{formatCurrency(discountAmount)}</span>
               </div>
             )}
 
@@ -1045,6 +1059,23 @@ const Sales = () => {
           color: var(--primary-gold);
           font-weight: 700;
           font-size: 0.85rem;
+        }
+
+        .discount-only-cash-toggle {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          cursor: pointer;
+          padding: 4px 8px;
+          background: rgba(255,255,255,0.05);
+          border-radius: 6px;
+          margin-left: auto;
+        }
+
+        .discount-only-cash-toggle input {
+          accent-color: var(--primary-gold);
         }
 
         /* ── Summary ── */

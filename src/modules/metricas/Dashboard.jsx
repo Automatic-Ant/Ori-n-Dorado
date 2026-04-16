@@ -20,11 +20,11 @@ import { useAuthStore } from '../../store/authStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import Modal from '../../components/Modal';
 import { useCajaStore } from '../../store/cajaStore';
+import { saleService } from '../../services/saleService';
 
 const Dashboard = () => {
   const sales = useSaleStore((state) => state.sales);
   const cancelSale = useSaleStore((state) => state.cancelSale);
-  const increaseStock = useProductStore((state) => state.increaseStock);
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -43,7 +43,8 @@ const Dashboard = () => {
 
   const handleConfirmCancel = async () => {
     if (saleToCancel) {
-      await cancelSale(saleToCancel.id, increaseStock);
+      // The DB trigger trg_restaurar_stock_al_cancelar will handle stock automatically
+      await cancelSale(saleToCancel.id);
       setIsCancelModalOpen(false);
       setSaleToCancel(null);
     }
@@ -127,13 +128,24 @@ const Dashboard = () => {
     const ingresos = todayCajaMovements.filter((m) => m.type === 'ingreso').reduce((sum, m) => sum + m.amount, 0);
     const egresos  = todayCajaMovements.filter((m) => m.type === 'egreso').reduce((sum, m) => sum + m.amount, 0);
 
-    const efectivo = todaySales
-      .filter((s) => s.paymentMethod && s.paymentMethod.includes('efectivo'))
-      .reduce((sum, s) => sum + (s.total || 0), 0) + ingresos - egresos;
+    // Precise calculation using the new paymentDetail
+    let efectivo = ingresos - egresos;
+    let digital = 0;
 
-    const digital = todaySales
-      .filter((s) => !s.paymentMethod || !s.paymentMethod.includes('efectivo'))
-      .reduce((sum, s) => sum + (s.total || 0), 0);
+    todaySales.forEach(s => {
+      const details = s.paymentDetail || {};
+      // Fallback for old sales without details
+      if (Object.keys(details).length === 0) {
+        if (s.paymentMethod?.toLowerCase().includes('efectivo')) {
+          efectivo += (s.total || 0);
+        } else {
+          digital += (s.total || 0);
+        }
+      } else {
+        efectivo += (details.efectivo || 0);
+        digital += (details.qr || 0) + (details.tarjeta || 0) + (details.transferencia || 0);
+      }
+    });
 
     return {
       totalEfectivo: efectivo,
@@ -270,7 +282,11 @@ const Dashboard = () => {
                       </div>
                     </td>
                     <td>
-                      <span className="payment-method-tag">{sale.paymentMethod}</span>
+                      <span className="payment-method-tag">
+                        {Object.keys(sale.paymentDetail || {}).length > 1 
+                          ? 'Múltiple' 
+                          : (sale.paymentMethod || '—')}
+                      </span>
                     </td>
                     <td>
                       {sale.discount > 0 ? (
@@ -337,8 +353,21 @@ const Dashboard = () => {
             <div className="details-header-info">
               <p><strong>Cliente:</strong> {selectedSale.customerName || selectedSale.customerDni || 'Cliente General'}</p>
               <p><strong>Vendedor:</strong> {selectedSale.sellerName || '-'}</p>
-              <p><strong>Fecha/Hora:</strong> {selectedSale.date} {selectedSale.time}</p>
-              <p><strong>Método de Pago:</strong> <span className="capitalize">{selectedSale.paymentMethod}</span></p>
+              <p><strong>Fecha/Hora:</strong> {saleService.formatSaleDate(selectedSale.date)}</p>
+              <div className="payment-details-info">
+                <strong>Método de Pago:</strong>
+                {Object.keys(selectedSale.paymentDetail || {}).length > 0 ? (
+                  <div className="payment-splits">
+                    {Object.entries(selectedSale.paymentDetail).map(([method, amount]) => (
+                      <span key={method} className="split-badge capitalize">
+                        {method}: {formatCurrency(amount)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="capitalize"> {selectedSale.paymentMethod}</span>
+                )}
+              </div>
             </div>
 
             <div className="details-items-container">
@@ -375,7 +404,7 @@ const Dashboard = () => {
                       </tr>
                       <tr>
                         <td colSpan="3" className="text-right discount-label-tfoot">
-                          Descuento ({selectedSale.discountPct != null ? selectedSale.discountPct : ''}%):
+                          Descuento ({selectedSale.discount_pct || selectedSale.discountPct || ''}%):
                         </td>
                         <td className="text-right discount-value">-{formatCurrency(selectedSale.discount)}</td>
                       </tr>

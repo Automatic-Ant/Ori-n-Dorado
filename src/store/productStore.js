@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabaseService } from '../services/supabaseService';
+import { productService } from '../services/productService';
 
 // Defer localStorage writes off the main thread so they don't block renders
 let _lsTimer = null;
@@ -31,6 +32,11 @@ export const useProductStore = create((set, get) => ({
       const localRaw = localStorage.getItem('orion_products');
       const localProducts = localRaw ? JSON.parse(localRaw) : [];
 
+      // Mostrar productos cacheados inmediatamente para evitar pantalla vacía
+      if (localProducts.length > 0) {
+        set({ products: localProducts });
+      }
+
       // One-time migration: fix all-caps and singular category names in the DB
       if (!localStorage.getItem('orion_cat_fix_v3')) {
         const fixes = [
@@ -56,16 +62,18 @@ export const useProductStore = create((set, get) => ({
       }
 
       if (liveProducts && liveProducts.length > 0) {
+        // Supabase tiene datos: actualizar estado y caché local
         set({ products: liveProducts });
         localStorage.setItem('orion_products', JSON.stringify(liveProducts));
-      } else if (liveProducts && liveProducts.length === 0) {
+      } else if (liveProducts && liveProducts.length === 0 && localProducts.length === 0) {
+        // Ambas fuentes están vacías: la DB está genuinamente sin productos
         set({ products: [] });
-        localStorage.setItem('orion_products', JSON.stringify([]));
-        alert("Atención: La base de datos de Supabase no tiene productos cargados.");
       }
+      // Si Supabase devuelve vacío pero localStorage tiene datos,
+      // conservar el caché local (puede ser un problema de red temporal)
     } catch (error) {
       console.error('Failed to init products:', error);
-      alert("Error crítico: " + error.message);
+      // No limpiar el estado en caso de error — conservar lo que haya en caché local
     }
 
     set({ isLoadingProducts: false });
@@ -110,60 +118,36 @@ export const useProductStore = create((set, get) => ({
   },
 
   addProduct: async (product) => {
+    // Note: We no longer handle optimistic stock here if we rely on DB triggers, 
+    // but for UI responsiveness we can still keep local state.
     const tempId = `temp-${Date.now()}`;
     const newProduct = { ...product, id: tempId };
 
-    // Optimistic UI update
-    set((state) => {
-      const updatedProducts = [...state.products, newProduct];
-      return { products: updatedProducts };
-    });
+    set((state) => ({ products: [...state.products, newProduct] }));
 
-    // Sync to Supabase
     try {
       const saved = await supabaseService.addProduct(product);
       if (saved) {
-        set((state) => {
-          // Replace tempId item with the real one from DB
-          const next = state.products.map(p => p.id === tempId ? saved : p);
-          try { localStorage.setItem('orion_products', JSON.stringify(next)); } catch { /* localStorage quota exceeded — ignore */ }
-          return { products: next };
-        });
+        set((state) => ({
+          products: state.products.map(p => p.id === tempId ? saved : p)
+        }));
       }
     } catch (error) {
        console.error('Error adding product:', error);
-       // Rollback if needed, but since it's a new product, we can just leave it as temp for now 
-       // or remove it. Let's remove it if it failed to persist.
        set(state => ({ products: state.products.filter(p => p.id !== tempId) }));
     }
   },
 
   updateProduct: async (id, updatedProduct, originalCode) => {
-    const previousProducts = get().products;
-
-    // 1. Optimistic local update
-    let nextProducts;
-    set((state) => {
-      nextProducts = state.products.map(p => p.id === id ? { ...p, ...updatedProduct } : p);
-      return { products: nextProducts };
-    });
-    // Save immediately so a reload mid-flight sees the updated data
-    try { localStorage.setItem('orion_products', JSON.stringify(nextProducts)); } catch { /* localStorage quota exceeded — ignore */ }
-
-    // 2. Sync to Supabase
     try {
-      const saved = await supabaseService.updateProduct(id, updatedProduct, originalCode);
+      const saved = await supabaseService.updateProduct(id, updatedProduct);
       if (saved) {
-        set((state) => {
-          const confirmedList = state.products.map(p => p.id === id ? saved : p);
-          try { localStorage.setItem('orion_products', JSON.stringify(confirmedList)); } catch { /* localStorage quota exceeded — ignore */ }
-          return { products: confirmedList };
-        });
+        set((state) => ({
+          products: state.products.map(p => p.id === id ? saved : p)
+        }));
       }
     } catch (e) {
-      console.error('Update Product Error, rolling back:', e);
-      set({ products: previousProducts });
-      try { localStorage.setItem('orion_products', JSON.stringify(previousProducts)); } catch { /* localStorage quota exceeded — ignore */ }
+      console.error('Update Product Error:', e);
       throw e;
     }
   },
@@ -196,62 +180,7 @@ export const useProductStore = create((set, get) => ({
     }
   },
 
-  decreaseStock: (itemsToDecrease) => {
-    let nextProducts;
-    set((state) => {
-      // Build a map of productId -> totalUnitsToDecrement, resolving package products to their parent
-      const decrementMap = new Map();
-      for (const item of itemsToDecrease) {
-        const product = state.products.find(p => p.id === item.id);
-        if (product?.parentProductId) {
-          const units = item.quantity * (product.unitsPerPackage || 1);
-          decrementMap.set(product.parentProductId, (decrementMap.get(product.parentProductId) || 0) + units);
-        } else {
-          decrementMap.set(item.id, (decrementMap.get(item.id) || 0) + item.quantity);
-        }
-      }
-
-      nextProducts = state.products.map(p => {
-        const decrement = decrementMap.get(p.id);
-        if (decrement) return { ...p, stock: Math.max(0, p.stock - decrement) };
-        return p;
-      });
-      return { products: nextProducts };
-    });
-    scheduleSave(nextProducts);
-  },
-
-  increaseStock: (itemsToIncrease) => {
-    let nextProducts;
-    set((state) => {
-      // Build a map of productId -> totalUnitsToRestore, resolving package products to their parent
-      const incrementMap = new Map();
-      for (const item of itemsToIncrease) {
-        if (item.parentProductId) {
-          const units = item.quantity * (item.unitsPerPackage || 1);
-          incrementMap.set(item.parentProductId, (incrementMap.get(item.parentProductId) || 0) + units);
-        } else {
-          // Also check current product state in case parentProductId is set there but not on the item
-          const product = state.products.find(p => p.id === item.id);
-          if (product?.parentProductId) {
-            const units = item.quantity * (product.unitsPerPackage || 1);
-            incrementMap.set(product.parentProductId, (incrementMap.get(product.parentProductId) || 0) + units);
-          } else {
-            incrementMap.set(item.id, (incrementMap.get(item.id) || 0) + item.quantity);
-          }
-        }
-      }
-
-      nextProducts = state.products.map(p => {
-        const increment = incrementMap.get(p.id);
-        if (increment) return { ...p, stock: p.stock + increment };
-        return p;
-      });
-      return { products: nextProducts };
-    });
-    scheduleSave(nextProducts);
-  },
-
+  // Manual stock manipulation removed. Trusting DB triggers.
   // Realtime handlers from external sources
   handleRealtimeEvent: (payload) => {
     const { eventType, new: newItem, old: oldItem } = payload;
