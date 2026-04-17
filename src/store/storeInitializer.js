@@ -4,6 +4,7 @@ import { useCustomerStore } from './customerStore';
 import { useSaleStore } from './saleStore';
 import { useAuthStore } from './authStore';
 import { useCajaStore } from './cajaStore';
+import { useFacturaStore } from './facturaStore';
 import { realtimeService } from '../services/realtimeService';
 
 export const useStoreInitializer = () => {
@@ -12,6 +13,7 @@ export const useStoreInitializer = () => {
   const initSales = useSaleStore((state) => state.initSales);
   const initAuth = useAuthStore((state) => state.initAuth);
   const initCaja = useCajaStore((state) => state.initCaja);
+  const initFacturas = useFacturaStore((state) => state.initFacturas);
 
   useEffect(() => {
     // Initialize all stores — runs once on mount
@@ -20,6 +22,7 @@ export const useStoreInitializer = () => {
     initCustomers();
     initSales();
     initCaja();
+    initFacturas();
 
     // Start Realtime synchronization
     realtimeService.subscribe();

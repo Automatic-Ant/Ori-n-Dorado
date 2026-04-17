@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   CheckCircle,
   RotateCcw,
+  FileText,
   X
 } from 'lucide-react';
 import { NavLink, Link } from 'react-router-dom';
@@ -31,6 +32,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: <RotateCcw size={20} />, label: 'Devoluciones', path: '/devoluciones' },
     { icon: <Users size={20} />, label: 'Clientes y Créditos', path: '/clientes' },
     { icon: <Wallet size={20} />, label: 'Agregar/Sacar dinero', path: '/caja' },
+    { icon: <FileText size={20} />, label: 'Facturas', path: '/facturas' },
   ];
 
   return (

@@ -440,4 +440,44 @@ export const supabaseService = {
     const { data, error } = await supabase.from('customers').select('*').eq('id', id).single();
     return data ? mapCustomer(data) : null;
   },
+
+  // ─── FACTURAS PROVEEDORES ─────────────────────────────────────
+  async getAllFacturasProveedores() {
+    const { data, error } = await supabase
+      .from('facturas_proveedores')
+      .select('*')
+      .order('fecha', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async addFacturaProveedor({ proveedor, fecha, descripcion, imageFile }) {
+    const ext = imageFile.name.split('.').pop();
+    const path = `${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('facturas-proveedores')
+      .upload(path, imageFile);
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from('facturas-proveedores')
+      .getPublicUrl(path);
+
+    const { data, error } = await supabase
+      .from('facturas_proveedores')
+      .insert([{ proveedor, fecha, imagen_url: urlData.publicUrl, descripcion: descripcion || '' }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteFacturaProveedor(id, imagenUrl) {
+    const parts = imagenUrl.split('/facturas-proveedores/');
+    if (parts.length > 1) {
+      await supabase.storage.from('facturas-proveedores').remove([parts[1]]);
+    }
+    const { error } = await supabase.from('facturas_proveedores').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
