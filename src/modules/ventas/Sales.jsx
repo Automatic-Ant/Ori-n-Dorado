@@ -256,9 +256,18 @@ const Sales = () => {
     }, 3000);
   };
 
-  const handleQuote = () => {
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const handleQuote = async () => {
     if (cart.length === 0) return;
-    generateQuotePDF({ cart, total, discount, discountPct, finalTotal, customerDni });
+    setIsGeneratingPDF(true);
+    try {
+      await generateQuotePDF({ cart, total, discount: discountAmount, discountPct, finalTotal, customerDni });
+    } catch (err) {
+      setError('Error al generar el presupuesto: ' + err.message);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   return (
@@ -525,11 +534,11 @@ const Sales = () => {
           <div className="checkout-actions">
             <button
               className="btn-secondary quote-btn"
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || isGeneratingPDF}
               onClick={handleQuote}
             >
               <FileText size={18} />
-              Presupuesto
+              {isGeneratingPDF ? 'Generando...' : 'Presupuesto'}
             </button>
             <button
               className="btn-primary checkout-btn"
