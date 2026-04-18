@@ -160,7 +160,6 @@ const Stock = () => {
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const term = deferredSearch.trim();
     const marcaNorm = normalizeText(filterMarca);
     const catNorm = normalizeText(filterCategory);
 
@@ -179,8 +178,7 @@ const Stock = () => {
       if (filterStock === 'sin'  && stockVal !== 0) return false;
       if (onlyLowStock && stockVal > minStockVal) return false;
       
-      // Hide products with price 0 only if no search term
-      if (onlyNoPrecio && !term && Number(p.price) === 0) return false;
+      if (onlyNoPrecio && Number(p.price) === 0) return false;
 
       return true;
     });
