@@ -149,21 +149,21 @@ export const supabaseService = {
       let lastErr = null;
       while (attempts < 2) {
         attempts++;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
         try {
-          const { data, error } = await supabase
+          const uploadPromise = supabase
             .from('products')
             .upsert(chunk, { onConflict: 'code' })
             .select();
-          clearTimeout(timeout);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Tiempo de espera agotado. Verificá tu conexión e intentá de nuevo.')), TIMEOUT_MS)
+          );
+          const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
           if (error) throw error;
           if (data) allInsertedRows.push(...data);
           inserted += chunk.length;
           lastErr = null;
           break;
         } catch (err) {
-          clearTimeout(timeout);
           lastErr = err;
           if (attempts < 2) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
         }
@@ -183,7 +183,7 @@ export const supabaseService = {
     return {
       inserted,
       skipped,
-      firstError,
+      error: firstError ? (firstError.message || 'Error desconocido al subir productos.') : null,
       rows: allInsertedRows.map(mapProduct)
     };
   },

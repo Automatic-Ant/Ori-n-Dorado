@@ -318,7 +318,8 @@ const ImportExcelModal = ({ onClose, onImport }) => {
                 {importResult.skipped > 0 && (
                   <div className="result-warning">
                     <AlertTriangle size={16} />
-                    {importResult.skipped} productos no se pudieron subir (error de red o datos inválidos).
+                    {importResult.skipped} productos no se pudieron subir.
+                    {importResult.error && <><br /><strong>Detalle:</strong> {importResult.error}</>}
                   </div>
                 )}
               </>
