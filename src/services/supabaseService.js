@@ -285,7 +285,6 @@ export const supabaseService = {
         email: customer.email || null,
         phone: customer.phone || null,
         address: customer.address || null,
-        category: customer.category || 'Bronce',
         credit_balance: customer.creditBalance || 0
       }])
       .select();
