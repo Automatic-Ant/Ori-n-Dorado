@@ -143,6 +143,7 @@ export const supabaseService = {
     let skipped = 0;
     let firstError = null;
     const allInsertedRows = [];
+    onProgress?.(1);
     const uploadChunk = async (chunk, index) => {
       let attempts = 0;
       let lastErr = null;
