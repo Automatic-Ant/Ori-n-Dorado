@@ -293,7 +293,7 @@ export const supabaseService = {
       console.error('Error adding customer to Supabase:', error);
       throw error;
     }
-    return data ? mapCustomer(data[0]) : null;
+    return data && data[0] ? mapCustomer(data[0]) : null;
   },
 
   async updateCustomer(id, customerData) {

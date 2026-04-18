@@ -145,7 +145,7 @@ const Customers = () => {
     <div className="customers-page">
       <header className="page-header">
         <div className="header-left">
-          <h2 className="page-title">Clientes y Créditos</h2>
+          <h2 className="page-title">Notas de Crédito</h2>
           <p className="page-subtitle">Gestión centralizada de clientes y saldos a favor.</p>
         </div>
         <div className="header-actions">

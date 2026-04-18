@@ -30,7 +30,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: <ShoppingCart size={20} />, label: 'Ventas', path: '/ventas' },
     { icon: <Package size={20} />, label: 'Stock', path: '/stock' },
     { icon: <RotateCcw size={20} />, label: 'Devoluciones', path: '/devoluciones' },
-    { icon: <Users size={20} />, label: 'Clientes y Créditos', path: '/clientes' },
+    { icon: <Users size={20} />, label: 'Notas de Crédito', path: '/clientes' },
     { icon: <Wallet size={20} />, label: 'Agregar/Sacar dinero', path: '/caja' },
     { icon: <FileText size={20} />, label: 'Facturas', path: '/facturas' },
   ];

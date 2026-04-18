@@ -70,17 +70,12 @@ export const useCustomerStore = create((set, get) => ({
           localStorage.setItem('orion_customers', JSON.stringify(newCustomers));
           return { customers: newCustomers };
         });
-      } else {
-        // Supabase returned null — roll back the optimistic add
-        set((state) => {
-          const rolled = state.customers.filter((c) => c.id !== tempId);
-          localStorage.setItem('orion_customers', JSON.stringify(rolled));
-          return { customers: rolled };
-        });
       }
+      // saved === null means insert succeeded but SELECT didn't return the row (RLS).
+      // Keep the optimistic customer with tempId — initCustomers will sync it on next load.
     } catch (e) {
       console.error('Error adding customer to Supabase:', e);
-      // Roll back the optimistic add so state stays consistent
+      // Roll back only on actual insert failure
       set((state) => {
         const rolled = state.customers.filter((c) => c.id !== tempId);
         localStorage.setItem('orion_customers', JSON.stringify(rolled));
