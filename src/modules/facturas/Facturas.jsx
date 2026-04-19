@@ -1,7 +1,16 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Trash2, X, FileText, ZoomIn, Loader } from 'lucide-react';
+import { Plus, Search, Trash2, X, FileText, ExternalLink, Loader, FileType } from 'lucide-react';
 import { useFacturaStore } from '../../store/facturaStore';
+
+function getFileType(url) {
+  if (!url) return 'doc';
+  const lower = url.toLowerCase().split('?')[0];
+  if (lower.endsWith('.pdf')) return 'pdf';
+  if (lower.endsWith('.docx')) return 'docx';
+  if (lower.endsWith('.doc')) return 'doc';
+  return 'doc';
+}
 
 function normalizar(str) {
   return String(str || '')
@@ -22,7 +31,6 @@ export default function Facturas() {
 
   const [busqueda, setBusqueda] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [showViewer, setShowViewer] = useState(null); // imagen url
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, imagenUrl }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +49,7 @@ export default function Facturas() {
     const file = e.target.files[0];
     if (!file) return;
     setForm(f => ({ ...f, imageFile: file }));
-    setPreview(URL.createObjectURL(file));
+    setPreview(file.name);
   }
 
   function resetModal() {
@@ -55,7 +63,7 @@ export default function Facturas() {
   async function handleGuardar() {
     if (!form.proveedor.trim()) return setError('El nombre del proveedor es obligatorio.');
     if (!form.fecha) return setError('La fecha es obligatoria.');
-    if (!form.imageFile) return setError('Seleccioná una imagen de la factura.');
+    if (!form.imageFile) return setError('Seleccioná un archivo PDF o Word de la factura.');
 
     setSaving(true);
     setError('');
@@ -129,9 +137,15 @@ export default function Facturas() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 layout
               >
-                <div className="card-img-wrap" onClick={() => setShowViewer(factura.imagen_url)}>
-                  <img src={factura.imagen_url} alt={factura.proveedor} className="card-img" />
-                  <div className="card-img-overlay"><ZoomIn size={20} /></div>
+                <div
+                  className="card-file-wrap"
+                  onClick={() => window.open(factura.imagen_url, '_blank', 'noopener,noreferrer')}
+                >
+                  <span className={`file-type-badge file-type-${getFileType(factura.imagen_url)}`}>
+                    {getFileType(factura.imagen_url).toUpperCase()}
+                  </span>
+                  <FileText size={40} className="card-file-icon" />
+                  <div className="card-file-overlay"><ExternalLink size={18} /> Abrir</div>
                 </div>
                 <div className="card-body">
                   <p className="card-proveedor">{factura.proveedor}</p>
@@ -185,18 +199,23 @@ export default function Facturas() {
                   onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
                 />
 
-                <label className="field-label">Imagen de la factura *</label>
+                <label className="field-label">Archivo de la factura *</label>
                 <div className="file-zone" onClick={() => fileRef.current?.click()}>
                   {preview ? (
-                    <img src={preview} alt="preview" className="preview-img" />
+                    <>
+                      <FileText size={32} className="preview-file-icon" />
+                      <span className="preview-filename">{preview}</span>
+                      <span className="preview-change">Tocá para cambiar</span>
+                    </>
                   ) : (
                     <>
-                      <FileText size={28} />
-                      <span>Tocá para seleccionar una foto o imagen</span>
+                      <FileType size={28} />
+                      <span>Tocá para seleccionar un archivo PDF o Word</span>
+                      <span className="file-hint">.pdf · .doc · .docx</span>
                     </>
                   )}
                 </div>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={handleFile} />
+                <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden-input" onChange={handleFile} />
 
                 {error && <p className="error-msg">{error}</p>}
               </div>
@@ -206,18 +225,6 @@ export default function Facturas() {
                   {saving ? <><Loader size={15} className="spinner-sm" /> Guardando...</> : 'Guardar Factura'}
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal: Visor de imagen */}
-      <AnimatePresence>
-        {showViewer && (
-          <motion.div className="viewer-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowViewer(null)}>
-            <motion.div className="viewer-container" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} onClick={e => e.stopPropagation()}>
-              <button className="viewer-close" onClick={() => setShowViewer(null)}><X size={22} /></button>
-              <img src={showViewer} alt="factura" className="viewer-img" />
             </motion.div>
           </motion.div>
         )}
@@ -355,33 +362,50 @@ export default function Facturas() {
         }
         .factura-card:hover { border-color: rgba(212,175,55,0.4); transform: translateY(-2px); }
 
-        .card-img-wrap {
+        .card-file-wrap {
           position: relative;
           width: 100%;
           height: 160px;
-          cursor: zoom-in;
+          cursor: pointer;
           overflow: hidden;
-          background: rgba(0,0,0,0.3);
+          background: rgba(0,0,0,0.25);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          transition: background 0.2s;
         }
-        .card-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          transition: transform 0.3s;
+        .card-file-wrap:hover { background: rgba(0,0,0,0.4); }
+        .card-file-icon { color: rgba(255,255,255,0.25); transition: color 0.2s; }
+        .card-file-wrap:hover .card-file-icon { color: rgba(255,255,255,0.5); }
+        .file-type-badge {
+          font-size: 0.7rem;
+          font-weight: 800;
+          letter-spacing: 1px;
+          padding: 0.2rem 0.5rem;
+          border-radius: 5px;
+          position: absolute;
+          top: 0.6rem;
+          left: 0.6rem;
         }
-        .card-img-wrap:hover .card-img { transform: scale(1.04); }
-        .card-img-overlay {
+        .file-type-pdf { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.4); }
+        .file-type-docx, .file-type-doc { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.4); }
+        .card-file-overlay {
           position: absolute;
           inset: 0;
-          background: rgba(0,0,0,0.45);
+          background: rgba(0,0,0,0.5);
           display: flex;
           align-items: center;
           justify-content: center;
+          gap: 0.4rem;
           color: white;
+          font-size: 0.85rem;
+          font-weight: 600;
           opacity: 0;
           transition: opacity 0.2s;
         }
-        .card-img-wrap:hover .card-img-overlay { opacity: 1; }
+        .card-file-wrap:hover .card-file-overlay { opacity: 1; }
 
         .card-body {
           padding: 0.85rem 1rem;
@@ -503,7 +527,10 @@ export default function Facturas() {
           justify-content: center;
         }
         .file-zone:hover { border-color: var(--primary-gold); color: white; }
-        .preview-img { max-height: 180px; max-width: 100%; border-radius: 8px; object-fit: contain; }
+        .preview-file-icon { color: var(--primary-gold); }
+        .preview-filename { font-size: 0.85rem; font-weight: 600; color: white; word-break: break-all; text-align: center; max-width: 100%; }
+        .preview-change { font-size: 0.75rem; color: var(--text-secondary); }
+        .file-hint { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.1rem; }
         .hidden-input { display: none; }
         .error-msg { color: #e74c3c; font-size: 0.85rem; margin: 0; }
 
@@ -547,51 +574,12 @@ export default function Facturas() {
         .btn-delete:hover { opacity: 0.85; }
         .spinner-sm { animation: spin 1s linear infinite; }
 
-        /* Visor imagen fullscreen */
-        .viewer-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.9);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2000;
-          padding: 1.5rem;
-        }
-        .viewer-container {
-          position: relative;
-          max-width: 90vw;
-          max-height: 90vh;
-        }
-        .viewer-img {
-          max-width: 100%;
-          max-height: 85vh;
-          border-radius: 10px;
-          object-fit: contain;
-        }
-        .viewer-close {
-          position: absolute;
-          top: -2.5rem;
-          right: 0;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
-          color: white;
-          border-radius: 8px;
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .viewer-close:hover { background: rgba(255,255,255,0.2); }
-
         @media (max-width: 768px) {
           .facturas-page { padding: 1rem; }
           .facturas-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.85rem; }
-          .card-img-wrap { height: 130px; }
+          .card-file-wrap { height: 130px; }
           .card-delete { opacity: 1; }
+          .card-file-overlay { opacity: 1; }
         }
       `}</style>
     </div>
