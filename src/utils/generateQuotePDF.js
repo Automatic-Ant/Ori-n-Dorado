@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatCurrency } from '../../utils/formatCurrency';
+import { formatCurrency } from './formatCurrency';
 
 async function getLogoBase64(url) {
   const res = await fetch(url);

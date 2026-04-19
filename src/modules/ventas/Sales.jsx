@@ -27,7 +27,7 @@ import { useCart } from './useCart';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getCurrentISO } from '../../utils/dateHelpers';
 import { saleService, PAYMENT_METHODS } from '../../services/saleService';
-import { generateQuotePDF } from './generateQuotePDF';
+import { generateQuotePDF } from '../../utils/generateQuotePDF';
 import { matchProduct } from '../../utils/searchHelpers';
 import { useDeferredValue } from 'react';
 

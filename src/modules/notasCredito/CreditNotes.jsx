@@ -28,7 +28,6 @@ const CreditNotes = () => {
       alert('Por favor selecciona un cliente y un producto.');
       return;
     }
-    // Add Credit Note to History
     addCreditNote({
       customer_name: formData.customer,
       product: formData.product,
@@ -37,9 +36,8 @@ const CreditNotes = () => {
       reason: formData.reason
     });
 
-    // Add Credit to Customer Balance
     addCredit(formData.customer, formData.amount);
-    
+
     setIsSuccess(true);
     setTimeout(() => {
       setIsSuccess(false);
@@ -62,9 +60,9 @@ const CreditNotes = () => {
           <form onSubmit={handleSave}>
             <div className="form-group">
               <label>Cliente</label>
-              <select 
+              <select
                 required
-                value={formData.customer} 
+                value={formData.customer}
                 onChange={e => setFormData({...formData, customer: e.target.value})}
               >
                 <option value="">Seleccionar cliente...</option>
@@ -74,7 +72,7 @@ const CreditNotes = () => {
 
             <div className="form-group">
               <label>Producto</label>
-              <select 
+              <select
                 required
                 value={formData.product}
                 onChange={e => setFormData({...formData, product: e.target.value})}
@@ -87,8 +85,8 @@ const CreditNotes = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Cantidad</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="1"
                   required
                   value={formData.quantity}
@@ -97,8 +95,8 @@ const CreditNotes = () => {
               </div>
               <div className="form-group">
                 <label>Monto a Acreditar</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="0"
                   required
                   placeholder="$ 0.00"
@@ -110,8 +108,8 @@ const CreditNotes = () => {
 
             <div className="form-group">
               <label>Motivo de la Devolución</label>
-              <textarea 
-                rows="3" 
+              <textarea
+                rows="3"
                 required
                 placeholder="Ej: Producto fallado, error en pedido..."
                 value={formData.reason}
@@ -148,7 +146,7 @@ const CreditNotes = () => {
 
       <AnimatePresence>
         {isSuccess && (
-          <motion.div 
+          <motion.div
             className="success-toast"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/Layout';
 import Dashboard from './modules/metricas/Dashboard';
 import Sales from './modules/ventas/Sales';
-import Returns from './modules/ventas/Returns';
+import Returns from './modules/devoluciones/Returns';
 import Stock from './modules/stock/Stock';
 import Customers from './modules/clientes/Customers';
 import Quotes from './modules/presupuestos/Quotes';

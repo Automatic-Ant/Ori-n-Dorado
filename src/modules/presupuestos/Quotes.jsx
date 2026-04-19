@@ -20,7 +20,7 @@ import { useProductStore } from '../../store/productStore';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { calculateCartTotal } from '../../utils/calculateTotals';
 import { matchProduct } from '../../utils/searchHelpers';
-import { generateQuotePDF } from '../ventas/generateQuotePDF';
+import { generateQuotePDF } from '../../utils/generateQuotePDF';
 import { useDeferredValue } from 'react';
 
 const QuantityInput = ({ item, handleSetQuantity }) => {
