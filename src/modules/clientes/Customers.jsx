@@ -4,21 +4,17 @@ import {
   Search,
   Plus,
   Phone,
-  CreditCard,
   Edit2,
   Trash2,
   Save,
   Receipt,
   FileText,
-  AlertCircle,
-  PlusCircle,
   Filter,
   AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../store/customerStore';
 import { useSaleStore } from '../../store/saleStore';
-import { useProductStore } from '../../store/productStore';
 import Modal from '../../components/Modal';
 import { formatCurrency } from '../../utils/formatCurrency';
 
@@ -27,24 +23,18 @@ const Customers = () => {
   const deleteCustomer = useCustomerStore((state) => state.deleteCustomer);
   const addCustomer = useCustomerStore((state) => state.addCustomer);
   const updateCustomer = useCustomerStore((state) => state.updateCustomer);
-  const addCredit = useCustomerStore((state) => state.addCredit);
-  
   const creditNotes = useSaleStore((state) => state.creditNotes);
-  const addCreditNote = useSaleStore((state) => state.addCreditNote);
-  const products = useProductStore((state) => state.products);
 
   const [activeTab, setActiveTab] = useState('directorio');
   const [searchTerm, setSearchTerm] = useState('');
   const [onlyWithBalance, setOnlyWithBalance] = useState(false);
   
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  
+
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [customerToDelete, setCustomerToDelete] = useState(null);
-  const [selectedCustomerForCredit, setSelectedCustomerForCredit] = useState(null);
-  
+
   const [customerFormData, setCustomerFormData] = useState({
     name: '',
     dni: '',
@@ -52,13 +42,6 @@ const Customers = () => {
     email: '',
     address: '',
     creditBalance: 0
-  });
-
-  const [creditFormData, setCreditFormData] = useState({
-    product: '',
-    quantity: 1,
-    reason: '',
-    amount: 0
   });
 
   const filteredCustomers = customers.filter(c => {
@@ -88,17 +71,6 @@ const Customers = () => {
     setIsCustomerModalOpen(true);
   };
 
-  const handleOpenCreditModal = (customer) => {
-    setSelectedCustomerForCredit(customer);
-    setCreditFormData({
-      product: '',
-      quantity: 1,
-      reason: '',
-      amount: 0
-    });
-    setIsCreditModalOpen(true);
-  };
-
   const handleCustomerSubmit = (e) => {
     e.preventDefault();
     if (editingCustomer) {
@@ -107,25 +79,6 @@ const Customers = () => {
       addCustomer(customerFormData);
     }
     setIsCustomerModalOpen(false);
-  };
-
-  const handleCreditSubmit = (e) => {
-    e.preventDefault();
-    if (!creditFormData.product) {
-      alert('Por favor selecciona un producto.');
-      return;
-    }
-    
-    addCreditNote({
-      customer_name: selectedCustomerForCredit.name,
-      product: creditFormData.product,
-      quantity: creditFormData.quantity,
-      amount: creditFormData.amount,
-      reason: creditFormData.reason
-    });
-
-    addCredit(selectedCustomerForCredit.id, creditFormData.amount);
-    setIsCreditModalOpen(false);
   };
 
   const confirmDelete = (customer) => {
@@ -232,12 +185,6 @@ const Customers = () => {
                           {formatCurrency(Number(customer.creditBalance))}
                         </span>
                       </div>
-                      <button 
-                        className="btn-secondary mini-btn"
-                        onClick={() => handleOpenCreditModal(customer)}
-                      >
-                        <PlusCircle size={14} /> Nota Crédito
-                      </button>
                     </div>
                   </motion.div>
                 ))}
@@ -339,70 +286,6 @@ const Customers = () => {
 
           <button type="submit" className="btn-primary full-width" style={{ marginTop: '1rem' }}>
             <Save size={20} /> {editingCustomer ? 'Actualizar Cliente' : 'Registrar Cliente'}
-          </button>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={isCreditModalOpen}
-        onClose={() => setIsCreditModalOpen(false)}
-        title={`Emitir Nota de Crédito: ${selectedCustomerForCredit?.name}`}
-      >
-        <form className="unified-form" onSubmit={handleCreditSubmit}>
-          <div className="form-group">
-            <label>Producto Devuelto</label>
-            <select 
-              required
-              value={creditFormData.product}
-              onChange={e => setCreditFormData({...creditFormData, product: e.target.value})}
-            >
-              <option value="">Seleccionar producto...</option>
-              {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
-
-          <div className="form-grid">
-            <div className="form-group">
-              <label>Cantidad</label>
-              <input 
-                type="number" 
-                min="1"
-                required
-                value={creditFormData.quantity}
-                onChange={e => setCreditFormData({...creditFormData, quantity: e.target.value})}
-              />
-            </div>
-            <div className="form-group">
-              <label>Monto a Favor ($)</label>
-              <input 
-                type="number" 
-                min="0"
-                required
-                placeholder="0.00"
-                value={creditFormData.amount}
-                onChange={e => setCreditFormData({...creditFormData, amount: e.target.value})}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Motivo de la Devolución</label>
-            <textarea 
-              rows="3" 
-              required
-              placeholder="Ej: Producto dañado, error en talle..."
-              value={creditFormData.reason}
-              onChange={e => setCreditFormData({...creditFormData, reason: e.target.value})}
-            ></textarea>
-          </div>
-
-          <div className="info-alert card glass">
-            <AlertCircle size={18} />
-            <p>Este monto se sumará al saldo a favor del cliente para próximas compras.</p>
-          </div>
-
-          <button type="submit" className="btn-primary full-width" style={{ marginTop: '1rem' }}>
-            <CreditCard size={20} /> Generar Saldo a Favor
           </button>
         </form>
       </Modal>
