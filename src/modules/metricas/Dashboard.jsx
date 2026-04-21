@@ -278,7 +278,7 @@ const Dashboard = () => {
                     <td>
                       <div className="sale-time">
                         <Clock size={14} />
-                        <span>{sale.date ? new Date(sale.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : ''} {sale.time}</span>
+                        <span>{saleService.formatSaleDate(sale.date)}</span>
                       </div>
                     </td>
                     <td>

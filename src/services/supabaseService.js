@@ -59,7 +59,7 @@ const TZ = 'America/Argentina/Buenos_Aires';
 
 export function mapSale(sale) {
   const saleNum = sale.sale_number
-    ? `OR-${String(sale.sale_number).padStart(5, '0')}`
+    ? `#${sale.sale_number}`
     : (sale.external_id || sale.id);
   return {
     id: saleNum,
