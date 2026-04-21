@@ -55,12 +55,17 @@ export function mapCustomer(c) {
   };
 }
 
+const TZ = 'America/Argentina/Buenos_Aires';
+
 export function mapSale(sale) {
+  const saleNum = sale.sale_number
+    ? `OR-${String(sale.sale_number).padStart(5, '0')}`
+    : (sale.external_id || sale.id);
   return {
-    id: sale.external_id || sale.id,
+    id: saleNum,
     supabaseId: sale.id,
     date: sale.date,
-    time: new Date(sale.date).toLocaleTimeString('es-AR'),
+    time: sale.date ? new Date(sale.date).toLocaleTimeString('es-AR', { timeZone: TZ }) : '',
     total: Number(sale.total),
     subtotal: Number(sale.subtotal || sale.total),
     discount: Number(sale.discount || 0),
@@ -340,7 +345,7 @@ export const supabaseService = {
       .from('sales')
       .insert([{
         external_id: sale.id,
-        date: sale.date,
+        date: sale.timestamp,
         total: totalAmount,
         subtotal: sale.subtotal || totalAmount,
         discount: sale.discount || 0,
@@ -357,7 +362,7 @@ export const supabaseService = {
 
     if (saleError) {
       console.error('Error syncing sale to Supabase:', saleError);
-      return;
+      throw saleError;
     }
     const saleId = saleRecord[0].id;
     const saleItemsList = sale.items.map(item => ({
@@ -368,14 +373,14 @@ export const supabaseService = {
       quantity: item.quantity,
       price: item.price,
       subtotal: item.price * item.quantity,
-      parent_product_id: item.parent_product_id || null,
+      parent_product_id: item.parentProductId || null,
       units_per_package: item.unitsPerPackage || 1,
     }));
     const { error: itemsError } = await supabase.from('sale_items').insert(saleItemsList);
-    if (itemsError) console.error('Error syncing sale items to Supabase:', itemsError);
-    
-    // ELIMINADO: El stock ahora se descuenta solo por Triggers en la DB.
-    // No más decrement_stock rpc manual desde el cliente.
+    if (itemsError) {
+      console.error('Error syncing sale items to Supabase:', itemsError);
+      throw itemsError;
+    }
   },
 
   async updateSaleStatus(saleId, status) {

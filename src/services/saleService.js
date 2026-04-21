@@ -71,8 +71,19 @@ export function validatePayments(total, paymentSplits, customerCreditUsed) {
   return Math.abs(totalPaid - total) < 0.01;
 }
 
+const TZ = 'America/Argentina/Buenos_Aires';
+
+export function formatSaleDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const date = d.toLocaleDateString('es-AR', { timeZone: TZ });
+  const time = d.toLocaleTimeString('es-AR', { timeZone: TZ });
+  return `${date} ${time}`;
+}
+
 export const saleService = {
   calculateExpandedSale,
   validatePayments,
+  formatSaleDate,
   PAYMENT_METHODS
 };

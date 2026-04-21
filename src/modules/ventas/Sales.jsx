@@ -205,7 +205,7 @@ const Sales = () => {
   };
 
   // ── Checkout ──────────────────────────────────────────────────
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
 
     const paymentMethodStr = splits.map(s => s.method).join('+');
@@ -213,7 +213,7 @@ const Sales = () => {
     if (customerCreditUsed > 0) {
       paymentDetail['saldo_favor'] = customerCreditUsed;
     }
-    
+
     if (hasTwoSplits) {
       paymentDetail[splits[0].method] = split0Final;
       paymentDetail[splits[1].method] = split1Final;
@@ -221,7 +221,6 @@ const Sales = () => {
       paymentDetail[splits[0].method] = finalTotal;
     }
 
-    // Generate a readable ID if not present (e.g. #1234)
     const saleId = `OR-${Date.now().toString().slice(-6)}`;
 
     const saleData = {
@@ -233,13 +232,19 @@ const Sales = () => {
       total: finalTotal,
       customerDni,
       customerId: matchedCustomer?.id || null,
+      customerName: matchedCustomer?.name || '',
       paymentMethod: paymentMethodStr,
       paymentDetail,
       timestamp: getCurrentISO(),
       sellerName: user?.name || 'Desconocido'
     };
 
-    addSale(saleData);
+    try {
+      await addSale(saleData);
+    } catch (e) {
+      console.error('No se pudo guardar la venta:', e);
+      return;
+    }
 
     if (customerCreditUsed > 0 && matchedCustomer) {
       deductCredit(matchedCustomer.id, customerCreditUsed);

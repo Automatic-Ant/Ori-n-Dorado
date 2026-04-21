@@ -70,7 +70,7 @@ const Dashboard = () => {
     // Sheet 1: Ventas
     const salesRows = monthlySales.map((s) => ({
       'ID':            s.id,
-      'Fecha':         s.date ? new Date(s.date).toLocaleDateString('es-AR') : '',
+      'Fecha':         s.date ? new Date(s.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '',
       'Hora':          s.time || '',
       'Cliente':       s.customerName || s.customerDni || 'Cliente General',
       'Vendedor':      s.sellerName || '',
@@ -86,7 +86,7 @@ const Dashboard = () => {
       (s.items || []).forEach((item) => {
         itemRows.push({
           'Venta ID':   s.id,
-          'Fecha':      s.date ? new Date(s.date).toLocaleDateString('es-AR') : '',
+          'Fecha':      s.date ? new Date(s.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '',
           'Producto':   item.name,
           'Código':     item.code || '',
           'Cantidad':   item.quantity,
@@ -101,7 +101,7 @@ const Dashboard = () => {
     const cajaRows = cajaMovements
       .filter((m) => m.date && m.date.startsWith(prefix))
       .map((m) => ({
-        'Fecha':       m.date ? new Date(m.date).toLocaleDateString('es-AR') : '',
+        'Fecha':       m.date ? new Date(m.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '',
         'Hora':        m.time || '',
         'Tipo':        m.type === 'ingreso' ? 'Ingreso' : 'Egreso',
         'Monto':       m.amount,
@@ -224,7 +224,7 @@ const Dashboard = () => {
                   <td className="caja-desc">{m.description || '—'}</td>
                   <td className="caja-seller">{m.sellerName || '—'}</td>
                   <td>
-                    <div className="sale-time"><Clock size={13} />{m.date ? new Date(m.date).toLocaleDateString('es-AR') : ''} {m.time}</div>
+                    <div className="sale-time"><Clock size={13} />{m.date ? new Date(m.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : ''} {m.time}</div>
                   </td>
                   <td className={`text-right caja-amount ${m.type}`}>
                     {m.type === 'ingreso' ? '+' : '−'} {formatCurrency(m.amount)}
@@ -278,7 +278,7 @@ const Dashboard = () => {
                     <td>
                       <div className="sale-time">
                         <Clock size={14} />
-                        <span>{sale.date ? new Date(sale.date).toLocaleDateString('es-AR') : ''} {sale.time}</span>
+                        <span>{sale.date ? new Date(sale.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : ''} {sale.time}</span>
                       </div>
                     </td>
                     <td>
