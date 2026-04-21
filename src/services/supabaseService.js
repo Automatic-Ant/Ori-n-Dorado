@@ -326,7 +326,7 @@ export const supabaseService = {
       const { data, error } = await supabase
         .from('sales')
         .select('*, sale_items(*)')
-        .order('date', { ascending: false })
+        .order('sale_number', { ascending: true, nullsFirst: false })
         .range(from, from + PAGE_SIZE - 1);
       if (error) {
         console.error('Error fetching sales from Supabase:', error);

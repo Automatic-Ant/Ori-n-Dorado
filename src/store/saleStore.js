@@ -83,7 +83,7 @@ export const useSaleStore = create((set, get) => ({
           // we might just trigger a single fetch if we want the items.
           // For now, let's just add it if not present.
           if (!next.some(s => s.id === newItem.id)) {
-             next = [newItem, ...next];
+            next = [...next, newItem];
           }
         } else if (eventType === 'UPDATE') {
           next = next.map(s => s.id === newItem.id ? { ...s, ...newItem } : s);
