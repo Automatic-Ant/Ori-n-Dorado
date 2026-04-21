@@ -264,7 +264,7 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {sales.map((sale) => (
+                {[...sales].reverse().map((sale) => (
                   <tr key={sale.id} className={sale.status === 'cancelado' ? 'sale-cancelled' : ''}>
                     <td>
                       <span className="sale-id">{sale.id}</span>
