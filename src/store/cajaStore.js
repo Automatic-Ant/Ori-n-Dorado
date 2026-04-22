@@ -9,14 +9,21 @@ export const useCajaStore = create((set) => ({
   initCaja: async () => {
     // Load from localStorage first for instant UI
     const local = localStorage.getItem(STORAGE_KEY);
-    if (local) set({ movements: JSON.parse(local) });
+    const localMovements = local ? JSON.parse(local) : [];
+    if (localMovements.length) set({ movements: localMovements });
 
-    // Then sync from Supabase
+    // Then sync from Supabase — merge instead of overwrite to avoid losing
+    // locally-added movements that haven't synced yet
     try {
       const live = await supabaseService.getAllCajaMovements();
-      if (live) {
-        set({ movements: live });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(live));
+      if (live !== null) {
+        const liveIds = new Set(live.map((m) => m.id));
+        const pendingLocal = localMovements.filter((m) => !liveIds.has(m.id));
+        const merged = [...live, ...pendingLocal].sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        );
+        set({ movements: merged });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
       }
     } catch (e) {
       console.error('Error loading caja movements from Supabase:', e);
@@ -46,7 +53,7 @@ export const useCajaStore = create((set) => ({
     try {
       await supabaseService.addCajaMovement(movement);
     } catch (e) {
-      console.error('Error syncing caja movement to Supabase:', e);
+      console.error('[Caja] Error al guardar movimiento en Supabase:', e?.message || e);
     }
   },
 

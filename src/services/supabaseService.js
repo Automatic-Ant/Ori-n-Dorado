@@ -409,7 +409,8 @@ export const supabaseService = {
 
   async getAllCajaMovements() {
     const { data, error } = await supabase.from('caja_movements').select('*').order('date', { ascending: false });
-    return data ? data.map(mapCajaMovement) : null;
+    if (error) throw error;
+    return data ? data.map(mapCajaMovement) : [];
   },
 
   async addCajaMovement(m) {
