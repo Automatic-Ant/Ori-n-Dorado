@@ -9,12 +9,9 @@ import { getCurrentISO } from '../../utils/dateHelpers';
 import { supabaseService } from '../../services/supabaseService';
 import { matchProduct } from '../../utils/searchHelpers';
 import { useDeferredValue } from 'react';
-import { productService } from '../../services/productService';
-import { saleService } from '../../services/saleService';
 
 const Returns = () => {
   const products = useProductStore((s) => s.products);
-  const increaseStock = useProductStore((s) => s.increaseStock);
   const customers = useCustomerStore((s) => s.customers);
   const addCredit = useCustomerStore((s) => s.addCredit);
   const addCreditNote = useSaleStore((s) => s.addCreditNote);
@@ -98,7 +95,7 @@ const Returns = () => {
       const productsSummary = returnItems.map((i) => `${i.name} (x${i.quantity})`).join(', ');
 
       await Promise.all(
-        returnItems.map(item => productService.adjustStock(item.id, item.quantity))
+        returnItems.map(item => supabaseService.incrementStock(item.id, item.quantity))
       );
 
       await addCreditNote({
