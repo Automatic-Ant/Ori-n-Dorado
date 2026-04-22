@@ -12,6 +12,7 @@ import { useDeferredValue } from 'react';
 
 const Returns = () => {
   const products = useProductStore((s) => s.products);
+  const setProducts = useProductStore((s) => s.setProducts);
   const customers = useCustomerStore((s) => s.customers);
   const addCredit = useCustomerStore((s) => s.addCredit);
   const addCreditNote = useSaleStore((s) => s.addCreditNote);
@@ -96,6 +97,14 @@ const Returns = () => {
 
       await Promise.all(
         returnItems.map(item => supabaseService.incrementStock(item.id, item.quantity))
+      );
+
+      // Update local store so the UI reflects the stock change immediately
+      setProducts(
+        products.map(p => {
+          const returned = returnItems.find(i => i.id === p.id);
+          return returned ? { ...p, stock: (p.stock || 0) + returned.quantity } : p;
+        })
       );
 
       await addCreditNote({

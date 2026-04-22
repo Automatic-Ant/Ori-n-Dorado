@@ -123,6 +123,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 8b. RPC: Increment Stock (used by returns/devoluciones)
+CREATE OR REPLACE FUNCTION public.increment_stock(product_id UUID, qty NUMERIC)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE public.products
+    SET stock = stock + qty,
+        updated_at = NOW()
+    WHERE id = product_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 9. Updated At Trigger
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$

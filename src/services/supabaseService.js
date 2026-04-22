@@ -389,7 +389,8 @@ export const supabaseService = {
   },
 
   async incrementStock(productId, quantity) {
-    await supabase.rpc('increment_stock', { product_id: productId, qty: quantity });
+    const { error } = await supabase.rpc('increment_stock', { product_id: productId, qty: quantity });
+    if (error) throw error;
   },
 
   async getAllCreditNotes() {
