@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { getCurrentISO } from '../utils/dateHelpers';
 import { supabaseService } from '../services/supabaseService';
 
 const STORAGE_KEY = 'orion_caja_movements';
@@ -25,13 +24,14 @@ export const useCajaStore = create((set) => ({
   },
 
   addMovement: async ({ type, amount, description, sellerName }) => {
+    const now = new Date();
     const movement = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: crypto.randomUUID(),
       type,
       amount: Number(amount),
       description: description || '',
-      date: getCurrentISO(),
-      time: new Date().toLocaleTimeString('es-AR'),
+      date: now.toISOString(),
+      time: now.toLocaleTimeString('es-AR'),
       sellerName: sellerName || '',
     };
 

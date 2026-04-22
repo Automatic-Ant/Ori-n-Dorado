@@ -98,7 +98,7 @@ export function mapCajaMovement(m) {
     amount: Number(m.amount),
     description: m.description || '',
     date: m.date,
-    time: m.time,
+    time: m.date ? new Date(m.date).toLocaleTimeString('es-AR') : (m.time || ''),
     sellerName: m.seller_name || '',
   };
 }
@@ -413,15 +413,15 @@ export const supabaseService = {
   },
 
   async addCajaMovement(m) {
-    await supabase.from('caja_movements').insert([{
+    const { error } = await supabase.from('caja_movements').insert([{
       id: m.id,
       type: m.type,
       amount: m.amount,
       description: m.description,
       date: m.date,
-      time: m.time,
       seller_name: m.sellerName
     }]);
+    if (error) throw error;
   },
 
   async deleteCajaMovement(id) {
