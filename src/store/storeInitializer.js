@@ -27,8 +27,18 @@ export const useStoreInitializer = () => {
     // Start Realtime synchronization
     realtimeService.subscribe();
 
+    // Fallback: re-sync caja when the tab becomes visible again
+    // (catches changes from other devices if realtime missed them)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        initCaja();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       realtimeService.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
