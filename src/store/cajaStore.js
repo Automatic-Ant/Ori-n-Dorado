@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { supabaseService } from '../services/supabaseService';
 
 const STORAGE_KEY = 'orion_caja_movements';
+const DELETED_KEY = 'orion_caja_deleted_ids';
+
+const getDeletedIds = () => new Set(JSON.parse(localStorage.getItem(DELETED_KEY) || '[]'));
+const saveDeletedIds = (ids) => localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
 
 export const useCajaStore = create((set) => ({
   movements: [],
@@ -12,14 +16,27 @@ export const useCajaStore = create((set) => ({
     const localMovements = local ? JSON.parse(local) : [];
     if (localMovements.length) set({ movements: localMovements });
 
-    // Then sync from Supabase — merge instead of overwrite to avoid losing
-    // locally-added movements that haven't synced yet
     try {
       const live = await supabaseService.getAllCajaMovements();
       if (live !== null) {
-        const liveIds = new Set(live.map((m) => m.id));
-        const pendingLocal = localMovements.filter((m) => !liveIds.has(m.id));
-        const merged = [...live, ...pendingLocal].sort(
+        // Retry any pending deletes that may have failed previously
+        const deletedIds = getDeletedIds();
+        for (const id of deletedIds) {
+          try {
+            await supabaseService.deleteCajaMovement(id);
+            deletedIds.delete(id);
+          } catch {}
+        }
+        saveDeletedIds(deletedIds);
+
+        // Merge: Supabase is authoritative, but exclude pending deletes
+        // and include local items not yet synced (pending inserts)
+        const liveFiltered = live.filter((m) => !deletedIds.has(m.id));
+        const liveIds = new Set(liveFiltered.map((m) => m.id));
+        const pendingLocal = localMovements.filter(
+          (m) => !liveIds.has(m.id) && !deletedIds.has(m.id)
+        );
+        const merged = [...liveFiltered, ...pendingLocal].sort(
           (a, b) => new Date(b.date) - new Date(a.date)
         );
         set({ movements: merged });
@@ -58,6 +75,11 @@ export const useCajaStore = create((set) => ({
   },
 
   removeMovement: async (id) => {
+    // Track deletion intent before optimistic update
+    const deletedIds = getDeletedIds();
+    deletedIds.add(id);
+    saveDeletedIds(deletedIds);
+
     // Optimistic local update
     set((state) => {
       const updated = state.movements.filter((m) => m.id !== id);
@@ -68,8 +90,12 @@ export const useCajaStore = create((set) => ({
     // Sync to Supabase
     try {
       await supabaseService.deleteCajaMovement(id);
+      // On success, remove from pending deletes tracker
+      const confirmed = getDeletedIds();
+      confirmed.delete(id);
+      saveDeletedIds(confirmed);
     } catch (e) {
-      console.error('Error deleting caja movement from Supabase:', e);
+      console.error('[Caja] Error al eliminar movimiento en Supabase:', e?.message || e);
     }
   },
 

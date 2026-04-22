@@ -426,7 +426,8 @@ export const supabaseService = {
   },
 
   async deleteCajaMovement(id) {
-    await supabase.from('caja_movements').delete().eq('id', id);
+    const { error } = await supabase.from('caja_movements').delete().eq('id', id);
+    if (error) throw error;
   },
 
   async fixCategoryCase(from, to) {
