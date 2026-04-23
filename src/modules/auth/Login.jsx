@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Login = () => {
@@ -11,6 +12,12 @@ const Login = () => {
 
   const { login, loading, error } = useAuthStore();
   const navigate = useNavigate();
+
+  // Warmup: wake up the Supabase connection pool as soon as the login page loads,
+  // so the DB is ready by the time the user finishes typing their credentials.
+  useEffect(() => {
+    supabase.from('products').select('id').limit(1).maybeSingle();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
