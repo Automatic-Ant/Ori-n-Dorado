@@ -90,6 +90,7 @@ const Stock = () => {
   const addProduct = useProductStore((state) => state.addProduct);
   const bulkAddProducts = useProductStore((state) => state.bulkAddProducts);
   const updateProduct = useProductStore((state) => state.updateProduct);
+  const initProducts = useProductStore((state) => state.initProducts);
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'admin';
   

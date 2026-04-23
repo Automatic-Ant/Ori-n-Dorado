@@ -145,6 +145,9 @@ export const useProductStore = create((set, get) => ({
         set((state) => ({
           products: state.products.map(p => p.id === id ? saved : p)
         }));
+      } else {
+        // Supabase returned no rows — likely a session or RLS issue
+        throw new Error('No se pudo guardar. La sesión puede haber expirado — recargá la página e intentá de nuevo.');
       }
     } catch (e) {
       console.error('Update Product Error:', e);

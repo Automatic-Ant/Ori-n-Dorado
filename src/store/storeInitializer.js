@@ -27,11 +27,12 @@ export const useStoreInitializer = () => {
     // Start Realtime synchronization
     realtimeService.subscribe();
 
-    // Fallback: re-sync caja when the tab becomes visible again
-    // (catches changes from other devices if realtime missed them)
+    // Fallback: re-sync data when the tab becomes visible again
+    // (catches changes from other devices and recovers from WebSocket drops)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         initCaja();
+        initProducts();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
