@@ -128,13 +128,19 @@ export const useProductStore = create((set, get) => ({
     try {
       const saved = await supabaseService.addProduct(product);
       if (saved) {
-        set((state) => ({
-          products: state.products.map(p => p.id === tempId ? saved : p)
-        }));
+        set((state) => {
+          const nextProducts = state.products.map(p => p.id === tempId ? saved : p);
+          scheduleSave(nextProducts);
+          return { products: nextProducts };
+        });
       }
     } catch (error) {
        console.error('Error adding product:', error);
-       set(state => ({ products: state.products.filter(p => p.id !== tempId) }));
+       set(state => {
+         const nextProducts = state.products.filter(p => p.id !== tempId);
+         scheduleSave(nextProducts);
+         return { products: nextProducts };
+       });
     }
   },
 
@@ -142,9 +148,11 @@ export const useProductStore = create((set, get) => ({
     try {
       const saved = await supabaseService.updateProduct(id, updatedProduct);
       if (saved) {
-        set((state) => ({
-          products: state.products.map(p => p.id === id ? saved : p)
-        }));
+        set((state) => {
+          const nextProducts = state.products.map(p => p.id === id ? saved : p);
+          scheduleSave(nextProducts);
+          return { products: nextProducts };
+        });
       } else {
         // Supabase returned no rows — likely a session or RLS issue
         throw new Error('No se pudo guardar. La sesión puede haber expirado — recargá la página e intentá de nuevo.');
