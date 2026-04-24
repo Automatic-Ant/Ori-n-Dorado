@@ -144,17 +144,6 @@ export const useProductStore = create((set, get) => ({
     }
   },
 
-  incrementParentStock: async (parentId, units) => {
-    await supabaseService.incrementStock(parentId, units);
-    set(state => {
-      const nextProducts = state.products.map(p =>
-        p.id === parentId ? { ...p, stock: p.stock + units } : p
-      );
-      scheduleSave(nextProducts);
-      return { products: nextProducts };
-    });
-  },
-
   updateProduct: async (id, updatedProduct, originalCode) => {
     try {
       const saved = await supabaseService.updateProduct(id, updatedProduct);

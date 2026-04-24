@@ -7,15 +7,7 @@ export const useCart = () => {
   const [customerDni, setCustomerDni] = useState('');
   const products = useProductStore((state) => state.products);
 
-  // For package products, effective stock = floor(parent.stock / unitsPerPackage)
-  const getEffectiveStock = (product) => {
-    if (product.parentProductId) {
-      const parent = products.find(p => p.id === product.parentProductId);
-      if (parent) return Math.floor(parent.stock / (product.unitsPerPackage || 1));
-      return 0;
-    }
-    return product.stock;
-  };
+  const getEffectiveStock = (product) => product.stock;
 
   const addToCart = (product, setError) => {
     const existing = cart.find(item => item.id === product.id);
