@@ -212,7 +212,7 @@ const Stock = () => {
   const handleEditProduct = useCallback((product) => {
     setEditingProduct(product);
     setIsPackageProduct(!!product.parentProductId);
-    const parentId = product.parentProductId ?? '';
+    setParentSearch('');
     setFormData({
       name: product.name ?? '',
       code: product.code ?? '',
@@ -224,7 +224,7 @@ const Stock = () => {
       unit: product.unit || 'unidad',
       marca: product.marca ?? '',
       listPrice: product.listPrice ?? '',
-      parentProductId: parentId,
+      parentProductId: product.parentProductId ?? '',
       unitsPerPackage: product.unitsPerPackage ?? 1,
     });
     setIsModalOpen(true);
