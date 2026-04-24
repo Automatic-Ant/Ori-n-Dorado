@@ -23,21 +23,14 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { productService } from '../../services/productService';
 import ImportExcelModal from './ImportExcelModal';
 
-const ProductRow = memo(({ product, isAdmin, onEdit, onDelete, parentProduct }) => {
-  const isPackage = !!product.parentProductId;
-  const availableQty = Number(product.stock);
-  const isLowStock = availableQty <= Number(product.minStock);
+const ProductRow = memo(({ product, isAdmin, onEdit, onDelete }) => {
+  const isLowStock = Number(product.stock) <= Number(product.minStock);
 
   return (
-    <tr className={isPackage ? 'package-row' : ''}>
+    <tr>
       <td><span className="code-badge">{product.code}</span></td>
       <td>
         <div className="prod-name-cell">
-          {isPackage && (
-            <span className="package-badge" title={`Presentación de: ${parentProduct?.name || 'producto base'} · ${product.unitsPerPackage} u/caja`}>
-              <Package size={11} /> ×{product.unitsPerPackage}
-            </span>
-          )}
           {product.name}
           {isLowStock && (
             <span className="low-stock-alert">
@@ -51,15 +44,9 @@ const ProductRow = memo(({ product, isAdmin, onEdit, onDelete, parentProduct }) 
       <td className="list-price-cell">{product.listPrice ? formatCurrency(product.listPrice) : '-'}</td>
       <td className="price-cell">{formatCurrency(product.price)}</td>
       <td>
-        {isPackage ? (
-          <span className={`stock-count ${isLowStock ? 'critical' : ''}`} title={`Stock base: ${parentProduct?.stock ?? '?'} unidades`}>
-            {availableQty} <span className="stock-unit-hint">cajas</span>
-          </span>
-        ) : (
-          <span className={`stock-count ${isLowStock ? 'critical' : ''}`}>
-            {product.stock}
-          </span>
-        )}
+        <span className={`stock-count ${isLowStock ? 'critical' : ''}`}>
+          {product.stock}
+        </span>
       </td>
       <td>{product.unit}</td>
       <td>
@@ -115,9 +102,6 @@ const Stock = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
-  const [isPackageProduct, setIsPackageProduct] = useState(false);
-  const [parentSearch, setParentSearch] = useState('');
-  
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -129,8 +113,6 @@ const Stock = () => {
     unit: 'unidad',
     marca: '',
     listPrice: '',
-    parentProductId: '',
-    unitsPerPackage: 1,
   });
 
   const stockStats = useMemo(() => {
@@ -206,8 +188,6 @@ const Stock = () => {
   // Stable callbacks for memoized ProductRow — must not change on every render
   const handleEditProduct = useCallback((product) => {
     setEditingProduct(product);
-    setIsPackageProduct(!!product.parentProductId);
-    setParentSearch('');
     setFormData({
       name: product.name ?? '',
       code: product.code ?? '',
@@ -219,8 +199,6 @@ const Stock = () => {
       unit: product.unit || 'unidad',
       marca: product.marca ?? '',
       listPrice: product.listPrice ?? '',
-      parentProductId: product.parentProductId ?? '',
-      unitsPerPackage: product.unitsPerPackage ?? 1,
     });
     setIsModalOpen(true);
   }, []);
@@ -237,8 +215,6 @@ const Stock = () => {
   const handleOpenModal = (product = null) => {
     if (product) {
       setEditingProduct(product);
-      setIsPackageProduct(!!product.parentProductId);
-      setParentSearch('');
       setFormData({
         name: product.name ?? '',
         code: product.code ?? '',
@@ -250,13 +226,9 @@ const Stock = () => {
         unit: product.unit || 'unidad',
         marca: product.marca ?? '',
         listPrice: product.listPrice ?? '',
-        parentProductId: product.parentProductId ?? '',
-        unitsPerPackage: product.unitsPerPackage ?? 1,
       });
     } else {
       setEditingProduct(null);
-      setIsPackageProduct(false);
-      setParentSearch('');
       setFormData({
         code: '',
         name: '',
@@ -268,8 +240,6 @@ const Stock = () => {
         unit: 'unidad',
         marca: '',
         listPrice: '',
-        parentProductId: '',
-        unitsPerPackage: 1,
       });
     }
     setIsModalOpen(true);
@@ -486,7 +456,6 @@ const Stock = () => {
                 isAdmin={isAdmin}
                 onEdit={handleEditProduct}
                 onDelete={handleDeleteProduct}
-                parentProduct={product.parentProductId ? products.find(p => p.id === product.parentProductId) : null}
               />
             ))}
           </tbody>
@@ -550,80 +519,6 @@ const Stock = () => {
             </div>
           </div>
 
-          <div className="form-group package-section">
-            <label className="package-toggle-label">
-              <input
-                type="checkbox"
-                checked={isPackageProduct}
-                onChange={(e) => {
-                  setIsPackageProduct(e.target.checked);
-                  if (!e.target.checked) {
-                    setFormData(prev => ({ ...prev, parentProductId: '', unitsPerPackage: 1 }));
-                    setParentSearch('');
-                  }
-                }}
-              />
-              Es una presentación de otro producto (ej: caja ×500)
-            </label>
-
-            {isPackageProduct && (
-              <div className="package-fields">
-                <div className="form-group" style={{ marginBottom: '12px' }}>
-                  <label>Producto base</label>
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre o código..."
-                    value={parentSearch}
-                    onChange={(e) => setParentSearch(e.target.value)}
-                    style={{ marginBottom: '6px', width: '100%' }}
-                  />
-                  {(() => {
-                    const selectedParent = formData.parentProductId
-                      ? products.find(p => p.id === formData.parentProductId)
-                      : null;
-                    return selectedParent ? (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--primary-gold)', marginBottom: '4px' }}>
-                        Seleccionado: [{selectedParent.code}] {selectedParent.name}
-                      </p>
-                    ) : null;
-                  })()}
-                  <select
-                    value={formData.parentProductId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, parentProductId: e.target.value }))}
-                    required
-                    size={5}
-                    style={{ width: '100%', height: 'auto', overflowX: 'auto' }}
-                  >
-                    <option value="">— Seleccioná el producto base —</option>
-                    {products
-                      .filter(p => {
-                        if (p.parentProductId || p.id === editingProduct?.id) return false;
-                        if (p.id === formData.parentProductId) return true;
-                        const q = parentSearch.toLowerCase();
-                        return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-                      })
-                      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
-                      .map(p => (
-                        <option key={p.id} value={p.id}>
-                          [{p.code}] {p.name}
-                        </option>
-                      ))
-                    }
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Unidades por caja / paquete</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={formData.unitsPerPackage}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unitsPerPackage: Number(e.target.value) || 1 }))}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
 
           <div className="form-grid-2">
             <div className="form-group">
