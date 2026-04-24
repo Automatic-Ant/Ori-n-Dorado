@@ -143,7 +143,7 @@ const Dashboard = () => {
         }
       } else {
         efectivo += (details.efectivo || 0);
-        digital += (details.qr || 0) + (details.tarjeta || 0) + (details.transferencia || 0);
+        digital += (details.qr || 0) + (details.debito || 0) + (details.tarjeta || 0) + (details.transferencia || 0);
       }
     });
 
