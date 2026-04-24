@@ -93,9 +93,6 @@ CREATE TABLE IF NOT EXISTS public.caja_movements (
 );
 
 -- 8. SET UP ROW LEVEL SECURITY (RLS)
--- Since the user requested "without login" for now, we will enable public access.
--- Warning: In a production app with sensitive data, this should be restricted to authenticated users.
-
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
@@ -103,13 +100,39 @@ ALTER TABLE public.sale_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.credit_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.caja_movements ENABLE ROW LEVEL SECURITY;
 
--- Create public access policies (Temporary, as per "without login" requirement)
-CREATE POLICY "Public Access Products" ON public.products FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Access Customers" ON public.customers FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Access Sales" ON public.sales FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Access Sale Items" ON public.sale_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Access Credit Notes" ON public.credit_notes FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Access Caja Movements" ON public.caja_movements FOR ALL USING (true) WITH CHECK (true);
+-- Helper: returns true if the caller's JWT belongs to a user with role = 'admin'.
+-- SECURITY DEFINER ensures the profiles lookup bypasses RLS.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- PRODUCTS: all authenticated users can read; only admins can write.
+CREATE POLICY "Auth users read products"   ON public.products FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Admin insert products"      ON public.products FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "Admin update products"      ON public.products FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin delete products"      ON public.products FOR DELETE USING (public.is_admin());
+
+-- CUSTOMERS: any authenticated user can read and write (vendedores register customers).
+CREATE POLICY "Auth users access customers" ON public.customers FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+-- SALES: authenticated users create and read; only admins can update/delete (cancel sales).
+CREATE POLICY "Auth users read sales"   ON public.sales FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Auth users insert sales" ON public.sales FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Admin update sales"      ON public.sales FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin delete sales"      ON public.sales FOR DELETE USING (public.is_admin());
+
+-- SALE ITEMS: mirrors sales access (cascade insert/delete by authenticated users).
+CREATE POLICY "Auth users access sale_items" ON public.sale_items FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+-- CREDIT NOTES: any authenticated user can read and write.
+CREATE POLICY "Auth users access credit_notes" ON public.credit_notes FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+-- CAJA MOVEMENTS: any authenticated user can read and write.
+CREATE POLICY "Auth users access caja_movements" ON public.caja_movements FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 
 -- 8. RPC: Decrement Stock Safely
 -- This function handles the atomic decrement of stock to avoid race conditions.

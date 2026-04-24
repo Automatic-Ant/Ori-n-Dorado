@@ -65,21 +65,24 @@ export function validateProductData(data) {
  */
 export function prepareProductForDB(product) {
   const isCableMetro = product.category === 'Cables' && product.unit === 'metro';
-  const codigoPrecio = parseFloat(product.codigoPrecio) || 0;
-  const baseCode = isCableMetro ? 1 : (parseFloat(product.baseCode) || 0);
-  
+  const codigoPrecio = Math.max(0, parseFloat(product.codigoPrecio) || 0);
+  const baseCode = isCableMetro ? 1 : Math.max(0, parseFloat(product.baseCode) || 0);
+  const stock = Math.max(0, Number(product.stock) || 0);
+  const minStock = Math.max(0, Number(product.minStock) || 0);
+  const listPrice = Math.max(0, parseFloat(product.listPrice) || 0);
+
   return {
     code: String(product.code || '').trim(),
     name: String(product.name || '').trim(),
     category: getCanonicalCategory(product.category),
     marca: String(product.marca || '').trim(),
-    stock: Number(product.stock) || 0,
-    min_stock: Number(product.minStock) || 0,
+    stock,
+    min_stock: minStock,
     codigo_precio: codigoPrecio,
     base_code: baseCode,
     price: codigoPrecio * baseCode,
     unit: product.unit || 'unidad',
-    list_price: parseFloat(product.listPrice) || 0,
+    list_price: listPrice,
     parent_product_id: product.parentProductId || null,
     units_per_package: Number(product.unitsPerPackage) || 1,
     updated_at: new Date().toISOString()

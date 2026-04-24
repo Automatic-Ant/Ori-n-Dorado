@@ -141,6 +141,7 @@ export const useProductStore = create((set, get) => ({
          scheduleSave(nextProducts);
          return { products: nextProducts };
        });
+       throw error;
     }
   },
 

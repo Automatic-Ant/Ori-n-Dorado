@@ -131,11 +131,37 @@ const ImportExcelModal = ({ onClose, onImport }) => {
 
     try {
       const result = await onImport(products, (pct) => setProgress(pct));
+
+      // Surface chunk-level unique constraint errors with a clearer message
+      if (result.skipped > 0 && result.error) {
+        const errMsg = result.error;
+        const isUniqueViolation =
+          errMsg.includes('duplicate key') ||
+          errMsg.includes('unique') ||
+          errMsg.includes('23505');
+        if (isUniqueViolation) {
+          const codeMatch = errMsg.match(/Key \(code\)=\(([^)]+)\)/);
+          const codeHint = codeMatch ? ` El primer código conflictivo fue: "${codeMatch[1]}".` : '';
+          result.error = `Algunos productos ya existen en la base de datos y no pudieron actualizarse.${codeHint} Verificá los códigos duplicados.`;
+        }
+      }
+
       setImportResult(result);
       setStep('preview');
     } catch (err) {
       console.error('Import error:', err);
-      setImportError('Ocurrió un error al importar. Revisá la consola para más detalles.');
+      const errMsg = err?.message || '';
+      const isUniqueViolation =
+        errMsg.includes('duplicate key') ||
+        errMsg.includes('unique') ||
+        err?.code === '23505';
+      if (isUniqueViolation) {
+        const codeMatch = errMsg.match(/Key \(code\)=\(([^)]+)\)/);
+        const codeHint = codeMatch ? ` Código conflictivo: "${codeMatch[1]}".` : '';
+        setImportError(`Uno o más códigos ya existen en la base de datos.${codeHint} Corregí el archivo o eliminá los productos existentes antes de importar.`);
+      } else {
+        setImportError('Ocurrió un error al importar. Revisá la consola para más detalles.');
+      }
     } finally {
       setImporting(false);
     }

@@ -80,12 +80,14 @@ const Stock = () => {
   const deferredSearch = useDeferredValue(searchInput);
   const isSearchStale = searchInput !== deferredSearch;
   const [onlyLowStock, setOnlyLowStock] = useState(() => !!location.state?.filterLowStock);
-  const [onlyNoPrecio, setOnlyNoPrecio] = useState(true);
+  const [filterWithPrice, setFilterWithPrice] = useState(false);
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('todos');
   const [sortBy, setSortBy] = useState('name'); // 'name', 'recent'
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const PAGE_SIZE = 15;
   
   const [globalBaseCode, setGlobalBaseCode] = useState(() => {
@@ -156,8 +158,8 @@ const Stock = () => {
       if (filterStock === 'bajo' && !(stockVal <= minStockVal && stockVal > 0)) return false;
       if (filterStock === 'sin'  && stockVal !== 0) return false;
       if (onlyLowStock && stockVal > minStockVal) return false;
-      
-      if (onlyNoPrecio && Number(p.price) === 0) return false;
+
+      if (filterWithPrice && Number(p.price) === 0) return false;
 
       return true;
     });
@@ -173,7 +175,7 @@ const Stock = () => {
     }
 
     return result;
-  }, [products, deferredSearch, onlyLowStock, onlyNoPrecio, filterMarca, filterCategory, filterStock, sortBy]);
+  }, [products, deferredSearch, onlyLowStock, filterWithPrice, filterMarca, filterCategory, filterStock, sortBy]);
 
   // Reset to page 1 whenever filters change
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
@@ -210,7 +212,7 @@ const Stock = () => {
   const handleMarcaChange = useCallback((e) => { setFilterMarca(e.target.value); setCurrentPage(1); }, []);
   const handleCategoryChange = useCallback((e) => { setFilterCategory(e.target.value); setCurrentPage(1); }, []);
   const handleStockFilterChange = useCallback((e) => { setFilterStock(e.target.value); setOnlyLowStock(false); setCurrentPage(1); }, []);
-  const handleClearFilters = useCallback(() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); setOnlyNoPrecio(true); setCurrentPage(1); }, []);
+  const handleClearFilters = useCallback(() => { setFilterMarca(''); setFilterCategory(''); setFilterStock('todos'); setOnlyLowStock(false); setFilterWithPrice(false); setCurrentPage(1); }, []);
 
   const handleOpenModal = (product = null) => {
     if (product) {
@@ -252,6 +254,8 @@ const Stock = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     const productData = {
       ...formData,
@@ -267,15 +271,36 @@ const Stock = () => {
       setIsModalOpen(false);
     } catch (error) {
       console.error('Submit Error:', error);
-      alert('Error al guardar: ' + (error.message || 'Error desconocido'));
+      const msg = error?.message || '';
+      if (msg.includes('duplicate key') || msg.includes('unique') || error?.code === '23505') {
+        alert('Ya existe un producto con ese código. Usá un código diferente.');
+      } else {
+        alert('Error al guardar: ' + (msg || 'Error desconocido'));
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleExecuteDelete = () => {
-    if (productToDelete) {
-      deleteProduct(productToDelete.id, productToDelete.code);
+  const handleExecuteDelete = async () => {
+    if (!productToDelete || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await deleteProduct(productToDelete.id, productToDelete.code);
       setIsDeleteModalOpen(false);
       setProductToDelete(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await initProducts();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -299,9 +324,9 @@ const Stock = () => {
           <p className="page-subtitle">Gestión de productos y control de existencias.</p>
         </div>
         <div className="header-actions">
-          <button className="btn-secondary" onClick={() => initProducts()} title="Sincronizar con la base de datos">
+          <button className="btn-secondary" onClick={handleRefresh} disabled={isRefreshing} title="Sincronizar con la base de datos">
             <TrendingUp size={18} />
-            Actualizar
+            {isRefreshing ? 'Actualizando...' : 'Actualizar'}
           </button>
           {isAdmin && (
             <button className="btn-import" onClick={() => setIsImportModalOpen(true)}>
@@ -414,14 +439,14 @@ const Stock = () => {
           <label className="filters card glass no-precio-filter" style={{ padding: '0 1rem', cursor: 'pointer', userSelect: 'none' }}>
             <input
               type="checkbox"
-              checked={onlyNoPrecio}
-              onChange={(e) => setOnlyNoPrecio(e.target.checked)}
+              checked={filterWithPrice}
+              onChange={(e) => setFilterWithPrice(e.target.checked)}
               style={{ accentColor: 'var(--color-gold, #c9a84c)', marginRight: '0.4rem' }}
             />
             <span className="filter-label">Con precio</span>
           </label>
 
-          {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock || !onlyNoPrecio) && (
+          {(filterMarca || filterCategory || filterStock !== 'todos' || onlyLowStock || filterWithPrice) && (
             <button
               className="clear-filters-btn card glass"
               onClick={handleClearFilters}
@@ -502,9 +527,9 @@ const Stock = () => {
       </div>
 
       {/* Product Edit/Create Modal */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setIsSubmitting(false); }}
         title={editingProduct ? 'Editar Producto' : 'Cargar Nuevo Producto'}
       >
         <form className="stock-form" onSubmit={handleSubmit}>
@@ -581,8 +606,8 @@ const Stock = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-            <Save size={20} /> {editingProduct ? 'Guardar Cambios' : 'Registrar Producto'}
+          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={isSubmitting}>
+            <Save size={20} /> {isSubmitting ? 'Guardando...' : (editingProduct ? 'Guardar Cambios' : 'Registrar Producto')}
           </button>
         </form>
       </Modal>
@@ -614,8 +639,10 @@ const Stock = () => {
           <p>¿Estás seguro de que deseas eliminar <strong>{productToDelete?.name}</strong>?</p>
           <p className="delete-warning">Esta acción no se puede deshacer y el producto será borrado de la base de datos.</p>
           <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</button>
-            <button className="btn-danger" onClick={handleExecuteDelete}>Eliminar Producto</button>
+            <button className="btn-secondary" onClick={() => setIsDeleteModalOpen(false)} disabled={isSubmitting}>Cancelar</button>
+            <button className="btn-danger" onClick={handleExecuteDelete} disabled={isSubmitting}>
+              {isSubmitting ? 'Eliminando...' : 'Eliminar Producto'}
+            </button>
           </div>
         </div>
       </Modal>
