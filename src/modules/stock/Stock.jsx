@@ -582,19 +582,22 @@ const Stock = () => {
                       type="text"
                       placeholder="Buscar por nombre o código..."
                       value={parentSearch}
-                      onChange={(e) => {
-                        setParentSearch(e.target.value);
-                        setFormData(prev => ({ ...prev, parentProductId: '' }));
-                      }}
+                      onChange={(e) => setParentSearch(e.target.value)}
                       style={{ marginBottom: '6px' }}
                     />
+                    {(() => {
+                      const selectedParent = formData.parentProductId
+                        ? products.find(p => p.id === formData.parentProductId)
+                        : null;
+                      return selectedParent ? (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--gold)', marginBottom: '4px' }}>
+                          Seleccionado: [{selectedParent.code}] {selectedParent.name}
+                        </p>
+                      ) : null;
+                    })()}
                     <select
                       value={formData.parentProductId}
-                      onChange={(e) => {
-                        const selected = products.find(p => p.id === e.target.value);
-                        setFormData(prev => ({ ...prev, parentProductId: e.target.value }));
-                        if (selected) setParentSearch(`[${selected.code}] ${selected.name}`);
-                      }}
+                      onChange={(e) => setFormData(prev => ({ ...prev, parentProductId: e.target.value }))}
                       required
                       size={5}
                       style={{ height: 'auto' }}
