@@ -90,6 +90,7 @@ const Stock = () => {
   const addProduct = useProductStore((state) => state.addProduct);
   const bulkAddProducts = useProductStore((state) => state.bulkAddProducts);
   const updateProduct = useProductStore((state) => state.updateProduct);
+  const incrementParentStock = useProductStore((state) => state.incrementParentStock);
   const initProducts = useProductStore((state) => state.initProducts);
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'admin';
@@ -287,9 +288,7 @@ const Stock = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Pass raw form data (camelCase keys) to the store.
-    // The service layer (supabaseService) will handle prepareProductForDB.
+
     const productData = {
       ...formData,
       stock: isPackageProduct ? 0 : Number(formData.stock)
@@ -300,6 +299,12 @@ const Stock = () => {
         await updateProduct(editingProduct.id, productData);
       } else {
         await addProduct(productData);
+        // Al crear un pack nuevo con stock inicial, sumar unidades al producto padre
+        const initialPacks = Number(formData.stock);
+        if (isPackageProduct && initialPacks > 0 && formData.parentProductId) {
+          const unitsToAdd = initialPacks * (Number(formData.unitsPerPackage) || 1);
+          await incrementParentStock(formData.parentProductId, unitsToAdd);
+        }
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -694,8 +699,21 @@ const Stock = () => {
 
           <div className="form-grid-2">
             <div className="form-group">
-              <label>Stock Inicial</label>
-              <input type="number" name="stock" required value={formData.stock} onChange={handleInputChange} />
+              {isPackageProduct && editingProduct ? (() => {
+                const parent = products.find(p => p.id === formData.parentProductId);
+                const derived = parent ? Math.floor(parent.stock / (formData.unitsPerPackage || 1)) : 0;
+                return (
+                  <>
+                    <label>Stock actual (calculado del producto base)</label>
+                    <input type="number" value={derived} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+                  </>
+                );
+              })() : (
+                <>
+                  <label>{isPackageProduct ? `Cajas a ingresar (× ${formData.unitsPerPackage || 1} u = stock inicial)` : 'Stock Inicial'}</label>
+                  <input type="number" name="stock" required value={formData.stock} onChange={handleInputChange} />
+                </>
+              )}
             </div>
             <div className="form-group">
               <label>Stock Mínimo</label>
