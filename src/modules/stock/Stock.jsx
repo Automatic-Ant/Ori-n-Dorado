@@ -575,59 +575,57 @@ const Stock = () => {
 
             {isPackageProduct && (
               <div className="package-fields">
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label>Producto base</label>
-                    <input
-                      type="text"
-                      placeholder="Buscar por nombre o código..."
-                      value={parentSearch}
-                      onChange={(e) => setParentSearch(e.target.value)}
-                      style={{ marginBottom: '6px' }}
-                    />
-                    {(() => {
-                      const selectedParent = formData.parentProductId
-                        ? products.find(p => p.id === formData.parentProductId)
-                        : null;
-                      return selectedParent ? (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--gold)', marginBottom: '4px' }}>
-                          Seleccionado: [{selectedParent.code}] {selectedParent.name}
-                        </p>
-                      ) : null;
-                    })()}
-                    <select
-                      value={formData.parentProductId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, parentProductId: e.target.value }))}
-                      required
-                      size={5}
-                      style={{ height: 'auto' }}
-                    >
-                      <option value="">— Seleccioná el producto base —</option>
-                      {products
-                        .filter(p => {
-                          if (p.parentProductId || p.id === editingProduct?.id) return false;
-                          const q = parentSearch.toLowerCase();
-                          return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-                        })
-                        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
-                        .map(p => (
-                          <option key={p.id} value={p.id}>
-                            [{p.code}] {p.name}
-                          </option>
-                        ))
-                      }
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Unidades por caja / paquete</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={formData.unitsPerPackage}
-                      onChange={(e) => setFormData(prev => ({ ...prev, unitsPerPackage: Number(e.target.value) || 1 }))}
-                    />
-                  </div>
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label>Producto base</label>
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre o código..."
+                    value={parentSearch}
+                    onChange={(e) => setParentSearch(e.target.value)}
+                    style={{ marginBottom: '6px', width: '100%' }}
+                  />
+                  {(() => {
+                    const selectedParent = formData.parentProductId
+                      ? products.find(p => p.id === formData.parentProductId)
+                      : null;
+                    return selectedParent ? (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--primary-gold)', marginBottom: '4px' }}>
+                        Seleccionado: [{selectedParent.code}] {selectedParent.name}
+                      </p>
+                    ) : null;
+                  })()}
+                  <select
+                    value={formData.parentProductId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, parentProductId: e.target.value }))}
+                    required
+                    size={5}
+                    style={{ width: '100%', height: 'auto', overflowX: 'auto' }}
+                  >
+                    <option value="">— Seleccioná el producto base —</option>
+                    {products
+                      .filter(p => {
+                        if (p.parentProductId || p.id === editingProduct?.id) return false;
+                        const q = parentSearch.toLowerCase();
+                        return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+                      })
+                      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+                      .map(p => (
+                        <option key={p.id} value={p.id}>
+                          [{p.code}] {p.name}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Unidades por caja / paquete</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={formData.unitsPerPackage}
+                    onChange={(e) => setFormData(prev => ({ ...prev, unitsPerPackage: Number(e.target.value) || 1 }))}
+                  />
                 </div>
                 {formData.parentProductId && (() => {
                   const parent = products.find(p => p.id === formData.parentProductId);
