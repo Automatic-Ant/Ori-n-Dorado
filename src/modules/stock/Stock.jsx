@@ -572,7 +572,7 @@ const Stock = () => {
 
           <div className="form-grid-2">
             <div className="form-group">
-              <label>{isPackageProduct ? `Stock (cajas / packs)` : 'Stock Inicial'}</label>
+              <label>Stock Inicial</label>
               <input type="number" name="stock" required value={formData.stock} onChange={handleInputChange} />
             </div>
             <div className="form-group">
