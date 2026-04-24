@@ -121,6 +121,7 @@ const Stock = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isPackageProduct, setIsPackageProduct] = useState(false);
+  const [parentSearch, setParentSearch] = useState('');
   
   const [formData, setFormData] = useState({
     code: '',
@@ -211,6 +212,7 @@ const Stock = () => {
   const handleEditProduct = useCallback((product) => {
     setEditingProduct(product);
     setIsPackageProduct(!!product.parentProductId);
+    const parentId = product.parentProductId ?? '';
     setFormData({
       name: product.name ?? '',
       code: product.code ?? '',
@@ -222,7 +224,7 @@ const Stock = () => {
       unit: product.unit || 'unidad',
       marca: product.marca ?? '',
       listPrice: product.listPrice ?? '',
-      parentProductId: product.parentProductId ?? '',
+      parentProductId: parentId,
       unitsPerPackage: product.unitsPerPackage ?? 1,
     });
     setIsModalOpen(true);
@@ -241,6 +243,7 @@ const Stock = () => {
     if (product) {
       setEditingProduct(product);
       setIsPackageProduct(!!product.parentProductId);
+      setParentSearch('');
       setFormData({
         name: product.name ?? '',
         code: product.code ?? '',
@@ -258,6 +261,7 @@ const Stock = () => {
     } else {
       setEditingProduct(null);
       setIsPackageProduct(false);
+      setParentSearch('');
       setFormData({
         code: '',
         name: '',
@@ -562,6 +566,7 @@ const Stock = () => {
                   setIsPackageProduct(e.target.checked);
                   if (!e.target.checked) {
                     setFormData(prev => ({ ...prev, parentProductId: '', unitsPerPackage: 1 }));
+                    setParentSearch('');
                   }
                 }}
               />
@@ -573,14 +578,34 @@ const Stock = () => {
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label>Producto base</label>
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre o código..."
+                      value={parentSearch}
+                      onChange={(e) => {
+                        setParentSearch(e.target.value);
+                        setFormData(prev => ({ ...prev, parentProductId: '' }));
+                      }}
+                      style={{ marginBottom: '6px' }}
+                    />
                     <select
                       value={formData.parentProductId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, parentProductId: e.target.value }))}
+                      onChange={(e) => {
+                        const selected = products.find(p => p.id === e.target.value);
+                        setFormData(prev => ({ ...prev, parentProductId: e.target.value }));
+                        if (selected) setParentSearch(`[${selected.code}] ${selected.name}`);
+                      }}
                       required
+                      size={5}
+                      style={{ height: 'auto' }}
                     >
                       <option value="">— Seleccioná el producto base —</option>
                       {products
-                        .filter(p => !p.parentProductId && p.id !== editingProduct?.id)
+                        .filter(p => {
+                          if (p.parentProductId || p.id === editingProduct?.id) return false;
+                          const q = parentSearch.toLowerCase();
+                          return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+                        })
                         .sort((a, b) => a.name.localeCompare(b.name, 'es'))
                         .map(p => (
                           <option key={p.id} value={p.id}>
