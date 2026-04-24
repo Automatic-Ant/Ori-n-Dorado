@@ -605,6 +605,7 @@ const Stock = () => {
                     {products
                       .filter(p => {
                         if (p.parentProductId || p.id === editingProduct?.id) return false;
+                        if (p.id === formData.parentProductId) return true;
                         const q = parentSearch.toLowerCase();
                         return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
                       })
